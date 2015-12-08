@@ -2839,6 +2839,28 @@ var nurdz;
 })(nurdz || (nurdz = {}));
 var nurdz;
 (function (nurdz) {
+    var game;
+    (function (game) {
+        var GameScene = (function (_super) {
+            __extends(GameScene, _super);
+            /**
+             * Construct a new game scene.
+             *
+             * @param name the name of this scene for debug purposes
+             * @param stage the stage that manages this scene
+             * @constructor
+             */
+            function GameScene(name, stage) {
+                // Invoke the super to set up our instance.
+                _super.call(this, name, stage);
+            }
+            return GameScene;
+        })(game.Scene);
+        game.GameScene = GameScene;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
     var main;
     (function (main) {
         /**
@@ -2878,103 +2900,6 @@ var nurdz;
                 }
             });
         }
-        /**
-         * This simple class represents a Dot on the screen. It starts in the center of the screen and bounces
-         * around.
-         */
-        var Dot = (function (_super) {
-            __extends(Dot, _super);
-            /**
-             * Construct an instance; it needs to know how it will be rendered.
-             *
-             * @param stage the stage that owns this actor.
-             * @param properties the properties to apply to this entity
-             */
-            function Dot(stage, properties) {
-                if (properties === void 0) { properties = {}; }
-                // Invoke the super to construct us. We position ourselves in the center of the stage.
-                _super.call(this, "A dot", stage, stage.width / 2, stage.height / 2, nurdz.game.TILE_SIZE, nurdz.game.TILE_SIZE, 1, properties, {
-                    xSpeed: nurdz.game.Utils.randomIntInRange(-5, 5),
-                    ySpeed: nurdz.game.Utils.randomIntInRange(-5, 5)
-                });
-                // Our radius is half our width because our position is registered via the center of our own
-                // bounds.
-                this._radius = this._width / 2;
-                // Show what we did in the console.
-                console.log("Dot entity created with properties: ", this._properties);
-            }
-            /**
-             * This gets invoked by the Entity class constructor when it runs to allow us to validate that our
-             * properties are OK.
-             *
-             * Here we make sure to fix up an X or Y speed that is 0 to be non-zero so that we always bounce
-             * in a pleasing fashion.
-             */
-            Dot.prototype.validateProperties = function () {
-                // Let the super class do its job.
-                _super.prototype.validateProperties.call(this);
-                // Make sure our xSpeed is valid.
-                if (this._properties.xSpeed == 0) {
-                    console.log("Fixing a 0 xSpeed");
-                    this._properties.xSpeed = nurdz.game.Utils.randomFloatInRange(-1, 1) > 0 ? 1 : -1;
-                }
-                // Make sure our ySpeed is valid.
-                if (this._properties.ySpeed == 0) {
-                    console.log("Fixing a 0 ySpeed");
-                    this._properties.ySpeed = nurdz.game.Utils.randomFloatInRange(-1, 1) > 0 ? 1 : -1;
-                }
-            };
-            /**
-             * Update our position on the stage.
-             *
-             * @param stage the stage we are on
-             */
-            Dot.prototype.update = function (stage) {
-                // Translate;
-                this._position.translateXY(this._properties.xSpeed, this._properties.ySpeed);
-                // Bounce left and right
-                if (this._position.x < this._radius || this._position.x >= stage.width - this._radius)
-                    this._properties.xSpeed *= -1;
-                // Bounce up and down.
-                if (this._position.y < this._radius || this._position.y >= stage.height - this._radius)
-                    this._properties.ySpeed *= -1;
-            };
-            /**
-             * Render ourselves to the stage.
-             *
-             * @param x the x location to render the actor at, in stage coordinates (NOT world)
-             * @param y the y location to render the actor at, in stage coordinates (NOT world)
-             * @param renderer the renderer to render with
-             */
-            Dot.prototype.render = function (x, y, renderer) {
-                renderer.fillCircle(x, y, this._radius, this._debugColor);
-            };
-            return Dot;
-        })(nurdz.game.Entity);
-        /**
-         * This is a simple extension of the scene class; it displays the FPS on the screen.
-         *
-         * Notice that it also clears the stage; the base Scene class only renders actors but doesn't clear
-         * the screen, so that when you override it you can get the actor rendering "for free" without it
-         * making assumptions about when it gets invoked.
-         */
-        var TestScene = (function (_super) {
-            __extends(TestScene, _super);
-            function TestScene() {
-                _super.apply(this, arguments);
-            }
-            /**
-             * Render the scene.
-             */
-            TestScene.prototype.render = function () {
-                // Clear the screen, render any actors, and then display the FPS we're running at in the top
-                // left corner.
-                this._stage.renderer.clear("black");
-                _super.prototype.render.call(this);
-                this._stage.renderer.drawTxt("FPS: " + this._stage.fps, 16, 16, 'white');
-            };
-            return TestScene;
-        })(nurdz.game.Scene);
         // Once the DOM is loaded, set things up.
         nurdz.contentLoaded(window, function () {
             try {
@@ -2983,11 +2908,9 @@ var nurdz;
                 // Set up the button that will stop the game if something goes wrong.
                 setupButton(stage, "controlBtn");
                 // Register all of our scenes.
-                stage.addScene("sceneName", new TestScene("A Scene", stage));
+                stage.addScene("game", new nurdz.game.GameScene("gameScene", stage));
                 // Switch to the initial scene, add a dot to display and then run the game.
-                stage.switchToScene("sceneName");
-                stage.currentScene.addActor(new Dot(stage));
-                stage.currentScene.addActor(new Dot(stage));
+                stage.switchToScene("game");
                 stage.run();
             }
             catch (error) {
