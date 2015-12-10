@@ -4,7 +4,6 @@ module nurdz.game
      * This represents the different kinds of segments that there can be. The segment type controls how a
      * segment visually displays itself to the screen and how it interacts with other segments in the bottle.
      */
-    import EntityProperties = nurdz.game.EntityProperties;
     export enum SegmentType
     {
         /**
@@ -212,7 +211,7 @@ module nurdz.game
         ]
     };
 
-    interface SegmentProperties extends game.EntityProperties
+    interface SegmentProperties extends EntityProperties
     {
         /**
          * The segment type. This is used for game logic and for rendering.
