@@ -38,7 +38,7 @@ module nurdz.game
          * always falls when the LEFT falls, so when we see a RIGHT, we skip over it and consider it
          * already handled.
          */
-        LEFT = 2,
+        LEFT,
         RIGHT,
 
         /**
