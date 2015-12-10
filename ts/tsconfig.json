@@ -24,6 +24,7 @@
         "engine/Tileset.ts",
         "engine/LevelData.ts",
         "engine/Level.ts",
+        "rx/entity/Segment.ts",
         "rx/GameScene.ts",
         "main.ts"
     ]
