@@ -2841,6 +2841,10 @@ var nurdz;
 (function (nurdz) {
     var game;
     (function (game) {
+        /**
+         * This represents the different kinds of segments that there can be. The segment type controls how a
+         * segment visually displays itself to the screen and how it interacts with other segments in the bottle.
+         */
         (function (SegmentType) {
             /**
              * An empty segment; this one doesn't render at all, it's just all blank and stuff. As a result
@@ -3191,6 +3195,94 @@ var nurdz;
     var game;
     (function (game) {
         /**
+         * The width of the pill bottle, in pills (tiles/segments).
+         *
+         * @type {number}
+         */
+        var BOTTLE_WIDTH = 8;
+        /**
+         * The height of the pill bottle, in pills (tiles/segments).
+         *
+         * @type {number}
+         */
+        var BOTTLE_HEIGHT = 16;
+        /**
+         * This entity represents the pill bottle, which is responsible for managing the display, detecting
+         * matches, and all other core game logic that relates directly the the contents of the game field.
+         */
+        var Bottle = (function (_super) {
+            __extends(Bottle, _super);
+            /**
+             * Construct a new bottle. The bottle is a defined size to render the bottle image itself as well
+             * as its contents, and it centers itself on the stage at an appropriate position.
+             *
+             * The bottle is responsible for all of the game logic that has to do with the board itself.
+             *
+             * @param stage the stage that will manage this entity/
+             */
+            function Bottle(stage) {
+                // Calculate how wide the bottle is, in pixels.
+                var pixelWidth = BOTTLE_WIDTH * game.TILE_SIZE;
+                // Configure ourselves to be large and in charge. We're centered on the screen and a couple of
+                // tiles from the top of the screen.
+                _super.call(this, "Bottle", stage, (stage.width / 2) - (pixelWidth / 2), 64, pixelWidth, BOTTLE_HEIGHT * game.TILE_SIZE, 1, {});
+                // TODO This is not creating things empty like it should
+                // Fill the bottle contents with empty segments.
+                this._contents = [];
+                for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++)
+                    this._contents[i] = new game.Segment(stage, game.Utils.randomIntInRange(0, game.SegmentType.SEGMENT_COUNT - 1), game.Utils.randomIntInRange(0, 2));
+            }
+            /**
+             * Render ourselves to the screen, along with our contents
+             * @param x the X location to render at
+             * @param y the Y location to render at
+             * @param renderer the renderer to use to render ourselves
+             */
+            Bottle.prototype.render = function (x, y, renderer) {
+                // Let the super render our background for us
+                _super.prototype.render.call(this, x, y, renderer);
+                for (var x_1 = 0; x_1 < BOTTLE_WIDTH; x_1++) {
+                    for (var y_1 = 0; y_1 < BOTTLE_HEIGHT; y_1++) {
+                        // Get the segment and render it.
+                        var segment = this._contents[y_1 * BOTTLE_WIDTH + x_1];
+                        segment.render(x_1 * game.TILE_SIZE + this._position.x, y_1 * game.TILE_SIZE + this._position.y, renderer);
+                    }
+                }
+            };
+            /**
+             * Given a position on the stage, this will determine if that position is inside the contents area
+             * of this bottle or not. If it is, the segment that is under that position will be returned.
+             * Otherwise, null is returned.
+             *
+             * @param stagePos the position to check
+             * @returns {Segment} the segment at the provided position on the stage, or null if the position
+             * is not inside the contents area of the bottle.
+             */
+            Bottle.prototype.segmentAtStagePosition = function (stagePos) {
+                // If it's inside the bottle, we can do something with it.
+                if (stagePos.x >= this._position.x && stagePos.y >= this._position.y &&
+                    stagePos.x < this._position.x + this._width &&
+                    stagePos.y < this._position.y + this._height) {
+                    // Convert the position to a tile by first transforming the point to be relative to the
+                    // origin of the screen and then constraining it to a tile dimension. We do this in a copy
+                    // so as to not modify the point provided to us.
+                    stagePos = stagePos.copyTranslatedXY(-this._position.x, -this._position.y).reduce(game.TILE_SIZE);
+                    // Get the segment clicked on and twiddle its type.
+                    return this._contents[stagePos.y * BOTTLE_WIDTH + stagePos.x];
+                }
+                // It's out of bounds.
+                return null;
+            };
+            return Bottle;
+        })(game.Entity);
+        game.Bottle = Bottle;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
+    var game;
+    (function (game) {
+        /**
          * The width of the pill bottle, in pills (tiles).
          *
          * @type {number}
@@ -3220,20 +3312,10 @@ var nurdz;
                 _super.call(this, name, stage);
                 // Create a simple segment to use for debug rendering. The type and color don't really matter.
                 this._debugSegment = new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE);
-                // Fill up the bottle.
-                this._bottle = [];
-                for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++) {
-                    // Generate random segments. This can include being empty or being a virus.
-                    this._bottle[i] = new game.Segment(stage, game.Utils.randomIntInRange(0, game.SegmentType.SEGMENT_COUNT - 1), game.Utils.randomIntInRange(0, 2));
-                }
-                // Calculate the X and Y offsets to render the bottle contents at. This tries to horizontally
-                // center the contents, and shift it down a few tiles to account for the top of the bottle
-                // with it's tiny mouth.
-                this._bottleXPos = this._renderer.width / 2 - ((BOTTLE_WIDTH / 2) * game.TILE_SIZE);
-                this._bottleYPos = 64;
-                // Calculate the pixel dimensions of the bottle.
-                this._bottlePixelWidth = BOTTLE_WIDTH * game.TILE_SIZE;
-                this._bottlePixelHeight = BOTTLE_HEIGHT * game.TILE_SIZE;
+                // Create a bottle entity to hold the game board contents and add it as an actor so that its
+                // update and render methods will get called.
+                this._bottle = new game.Bottle(stage);
+                this.addActor(this._bottle);
             }
             /**
              * Draw the debug segment at the provided X and Y location (specifying the top left of the cell in
@@ -3294,14 +3376,8 @@ var nurdz;
                 this.drawSegment(32, 256, game.SegmentType.VIRUS, game.SegmentColor.BLUE, 2);
                 this.drawSegment(64, 256, game.SegmentType.VIRUS, game.SegmentColor.RED);
                 this.drawSegment(96, 256, game.SegmentType.VIRUS, game.SegmentColor.YELLOW);
-                // Draw a grid of single segments to outline where the bottle will be.
-                for (var x = 0; x < BOTTLE_WIDTH; x++) {
-                    for (var y = 0; y < BOTTLE_HEIGHT; y++) {
-                        // Get the segment and render it.
-                        var segment = this._bottle[y * BOTTLE_WIDTH + x];
-                        segment.render(x * game.TILE_SIZE + this._bottleXPos, y * game.TILE_SIZE + this._bottleYPos, this._renderer);
-                    }
-                }
+                // Invoke the super to draw the bottle for us.
+                _super.prototype.render.call(this);
             };
             /**
              * This triggers when a mouse click event happens.
@@ -3309,20 +3385,15 @@ var nurdz;
              * @param eventObj the mouse click event
              */
             GameScene.prototype.inputMouseClick = function (eventObj) {
-                // Get the position where the mouse was clicked.
-                var mousePos = this._stage.calculateMousePos(eventObj);
-                // If it's inside the bottle, we can do something with it.
-                if (mousePos.x >= this._bottleXPos && mousePos.y >= this._bottleYPos &&
-                    mousePos.x < this._bottleXPos + this._bottlePixelWidth &&
-                    mousePos.y < this._bottleYPos + this._bottlePixelHeight) {
-                    // Convert the mouse position to a tile by first transforming the point to be relative to
-                    // the origin of the screen and then constraining it to a tile dimension.
-                    mousePos.translateXY(-this._bottleXPos, -this._bottleYPos).reduce(game.TILE_SIZE);
-                    // Get the segment clicked on and twiddle its type.
-                    var segment = this._bottle[mousePos.y * BOTTLE_WIDTH + mousePos.x];
+                // Get the segment at the position where the mouse was clicked. It's null if the click didn't
+                // happen inside the bottle contents area.
+                var segment = this._bottle.segmentAtStagePosition(this._stage.calculateMousePos(eventObj));
+                if (segment != null) {
                     segment.properties.type++;
                     if (segment.properties.type >= game.SegmentType.SEGMENT_COUNT)
                         segment.properties.type = 0;
+                    if (segment.properties.type == game.SegmentType.VIRUS)
+                        segment.virusPolygon = game.Utils.randomIntInRange(0, 2);
                 }
             };
             /**

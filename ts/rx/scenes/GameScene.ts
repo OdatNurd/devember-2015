@@ -28,35 +28,15 @@ module nurdz.game
         protected _renderer : CanvasRenderer;
 
         /**
-         * The contents of the bottle.
-         */
-        private _bottle : Array<Segment>;
-
-        /**
-         * The X position of the top of the bottle.
-         */
-        private _bottleXPos : number;
-
-        /**
-         * The Y position of the top of the bottle.
-         */
-        private _bottleYPos : number;
-
-        /**
-         * The width of the contents of the bottle, in pixels.
-         */
-        private _bottlePixelWidth : number;
-
-        /**
-         * The height of the contents of the bottle, in pixels.
-         */
-        private _bottlePixelHeight : number;
-
-        /**
          * For debug purposes we display all possible segments; this is used to render them in the most
          * horrifically stupid way possible.
          */
         private _debugSegment : Segment;
+
+        /**
+         * The bottle that holds the game area.
+         */
+        private _bottle : Bottle;
 
         /**
          * Construct a new game scene.
@@ -73,25 +53,10 @@ module nurdz.game
             // Create a simple segment to use for debug rendering. The type and color don't really matter.
             this._debugSegment = new Segment (stage, SegmentType.EMPTY, SegmentColor.BLUE);
 
-            // Fill up the bottle.
-            this._bottle = [];
-            for (var i = 0 ; i < BOTTLE_WIDTH * BOTTLE_HEIGHT ; i++)
-            {
-                // Generate random segments. This can include being empty or being a virus.
-                this._bottle[i] = new game.Segment (stage,
-                    Utils.randomIntInRange (0, SegmentType.SEGMENT_COUNT - 1),
-                    Utils.randomIntInRange (0, 2));
-            }
-
-            // Calculate the X and Y offsets to render the bottle contents at. This tries to horizontally
-            // center the contents, and shift it down a few tiles to account for the top of the bottle
-            // with it's tiny mouth.
-            this._bottleXPos = this._renderer.width / 2 - ((BOTTLE_WIDTH / 2) * TILE_SIZE);
-            this._bottleYPos = 64;
-
-            // Calculate the pixel dimensions of the bottle.
-            this._bottlePixelWidth = BOTTLE_WIDTH * TILE_SIZE;
-            this._bottlePixelHeight = BOTTLE_HEIGHT * TILE_SIZE;
+            // Create a bottle entity to hold the game board contents and add it as an actor so that its
+            // update and render methods will get called.
+            this._bottle = new Bottle (stage);
+            this.addActor (this._bottle);
         }
 
         /**
@@ -114,7 +79,7 @@ module nurdz.game
             if (type == SegmentType.VIRUS)
                 this._debugSegment.virusPolygon = poly;
             this._debugSegment.color = color;
-            this._debugSegment.render(x, y, this._renderer);
+            this._debugSegment.render (x, y, this._renderer);
         }
 
         /**
@@ -165,19 +130,8 @@ module nurdz.game
             this.drawSegment (64, 256, SegmentType.VIRUS, SegmentColor.RED);
             this.drawSegment (96, 256, SegmentType.VIRUS, SegmentColor.YELLOW);
 
-
-            // Draw a grid of single segments to outline where the bottle will be.
-            for (var x = 0 ; x < BOTTLE_WIDTH ; x++)
-            {
-                for (var y = 0 ; y < BOTTLE_HEIGHT ; y++)
-                {
-                    // Get the segment and render it.
-                    var segment = this._bottle[y * BOTTLE_WIDTH + x];
-                    segment.render(x * TILE_SIZE + this._bottleXPos,
-                                   y * TILE_SIZE + this._bottleYPos,
-                                   this._renderer);
-                }
-            }
+            // Invoke the super to draw the bottle for us.
+            super.render ();
         }
 
         /**
@@ -187,23 +141,17 @@ module nurdz.game
          */
         inputMouseClick (eventObj : MouseEvent)
         {
-            // Get the position where the mouse was clicked.
-            var mousePos = this._stage.calculateMousePos (eventObj);
-
-            // If it's inside the bottle, we can do something with it.
-            if (mousePos.x >= this._bottleXPos && mousePos.y >= this._bottleYPos &&
-                mousePos.x < this._bottleXPos + this._bottlePixelWidth &&
-                mousePos.y < this._bottleYPos + this._bottlePixelHeight)
+            // Get the segment at the position where the mouse was clicked. It's null if the click didn't
+            // happen inside the bottle contents area.
+            var segment = this._bottle.segmentAtStagePosition (this._stage.calculateMousePos (eventObj));
+            if (segment != null)
             {
-                // Convert the mouse position to a tile by first transforming the point to be relative to
-                // the origin of the screen and then constraining it to a tile dimension.
-                mousePos.translateXY (-this._bottleXPos, -this._bottleYPos).reduce (TILE_SIZE);
-
-                // Get the segment clicked on and twiddle its type.
-                var segment = this._bottle[mousePos.y * BOTTLE_WIDTH + mousePos.x];
                 segment.properties.type++;
                 if (segment.properties.type >= SegmentType.SEGMENT_COUNT)
                     segment.properties.type = 0;
+
+                if (segment.properties.type == SegmentType.VIRUS)
+                    segment.virusPolygon = Utils.randomIntInRange (0, 2);
             }
         }
 
@@ -220,11 +168,11 @@ module nurdz.game
             // F5 takes a screenshot.
             if (eventObj.keyCode == KeyCodes.KEY_F5)
             {
-                this.screenshot("rx", "Rx Clone Screenshot");
+                this.screenshot ("rx", "Rx Clone Screenshot");
                 return true;
             }
 
-            return super.inputKeyDown(eventObj);
+            return super.inputKeyDown (eventObj);
         }
     }
 }
