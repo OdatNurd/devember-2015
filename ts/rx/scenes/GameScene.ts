@@ -139,7 +139,7 @@ module nurdz.game
          *
          * @param eventObj the mouse click event
          */
-        inputMouseClick (eventObj : MouseEvent)
+        inputMouseClick (eventObj : MouseEvent) : boolean
         {
             // Get the segment at the position where the mouse was clicked. It's null if the click didn't
             // happen inside the bottle contents area.
@@ -153,6 +153,9 @@ module nurdz.game
                 if (segment.properties.type == SegmentType.VIRUS)
                     segment.virusPolygon = Utils.randomIntInRange (0, 2);
             }
+
+            // Yeah, we did a thing, even if we didn't find a segment.
+            return true;
         }
 
 

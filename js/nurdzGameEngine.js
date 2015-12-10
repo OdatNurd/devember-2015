@@ -3405,6 +3405,8 @@ var nurdz;
                     if (segment.properties.type == game.SegmentType.VIRUS)
                         segment.virusPolygon = game.Utils.randomIntInRange(0, 2);
                 }
+                // Yeah, we did a thing, even if we didn't find a segment.
+                return true;
             };
             /**
              * This triggers when a keyboard key is pressed.
