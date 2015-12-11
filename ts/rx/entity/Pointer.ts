@@ -51,7 +51,7 @@ module nurdz.game
          *
          * @param stage the stage that owns us.
          */
-        update (stage : Stage)
+        update (stage : Stage) : void
         {
             this._count++;
             if (this._count == 7)
@@ -70,7 +70,7 @@ module nurdz.game
          * @param y the Y location of where to draw ourselves
          * @param renderer the renderer to use to draw ourselves
          */
-        render (x : number, y : number, renderer : Renderer)
+        render (x : number, y : number, renderer : Renderer) : void
         {
             renderer.translateAndRotate (x, y, null);
             renderer.fillPolygon (this._poly, this._colors[this._colorIndex]);

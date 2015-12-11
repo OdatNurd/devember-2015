@@ -180,7 +180,7 @@ module nurdz.game
          * @param y the y location to render the bottle image at
          * @param renderer the renderer to use to render the bottle.
          */
-        private renderBottle (x : number, y : number, renderer : CanvasRenderer)
+        private renderBottle (x : number, y : number, renderer : CanvasRenderer) : void
         {
             // Let the super render our background for us so we can determine if the bounds of the bottle
             // object are correct or not.
@@ -198,7 +198,7 @@ module nurdz.game
          * @param y the Y location to render at
          * @param renderer the renderer to use to render ourselves
          */
-        render (x : number, y : number, renderer : CanvasRenderer)
+        render (x : number, y : number, renderer : CanvasRenderer) : void
         {
             // Start by rendering the bottle.
             this.renderBottle (x, y, renderer);

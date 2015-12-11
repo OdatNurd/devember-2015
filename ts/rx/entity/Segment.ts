@@ -382,7 +382,7 @@ module nurdz.game
          *
          * @param renderer the renderer to render the virus with
          */
-        private renderVirus (renderer : CanvasRenderer)
+        private renderVirus (renderer : CanvasRenderer) : void
         {
             // The eyes and mouth of the virus will be black except when the color of the virus itself
             // is blue, in which case we render it as a gray instead, to give better contrast.
@@ -405,7 +405,7 @@ module nurdz.game
          *
          * @param renderer the renderer to render the capsule segment with
          */
-        private renderCapsuleSegment (renderer : CanvasRenderer)
+        private renderCapsuleSegment (renderer : CanvasRenderer) : void
         {
             // How we render depends on our type.
             switch (this._properties.type)
@@ -438,7 +438,15 @@ module nurdz.game
             }
         }
 
-        render (x : number, y : number, renderer : CanvasRenderer)
+        /**
+         * This is the core rendering routine. Based on our current type and color, we draw ourselves as
+         * appropriate at the provided location.
+         *
+         * @param x the X location to render to
+         * @param y the Y location to render to
+         * @param renderer the renderer to use to render ourselves
+         */
+        render (x : number, y : number, renderer : CanvasRenderer) : void
         {
             // Invoke the super, which will render a background for us at our dimensions, which we can use
             // for debugging purposes to ensure that we're drawing correctly.

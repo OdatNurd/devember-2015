@@ -103,7 +103,7 @@ module nurdz.game
          *
          * Currently this method DOES NOT chain to the superclass, so it doesn't render any actors/entities.
          */
-        render ()
+        render () : void
         {
             // Clear the canvas, then let the super render everything for us.
             this._renderer.clear ('black');

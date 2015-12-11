@@ -3229,6 +3229,14 @@ var nurdz;
                         return;
                 }
             };
+            /**
+             * This is the core rendering routine. Based on our current type and color, we draw ourselves as
+             * appropriate at the provided location.
+             *
+             * @param x the X location to render to
+             * @param y the Y location to render to
+             * @param renderer the renderer to use to render ourselves
+             */
             Segment.prototype.render = function (x, y, renderer) {
                 // Invoke the super, which will render a background for us at our dimensions, which we can use
                 // for debugging purposes to ensure that we're drawing correctly.
