@@ -55,7 +55,7 @@ module nurdz.game
 
             // Create a bottle entity to hold the game board contents and add it as an actor so that its
             // update and render methods will get called.
-            this._bottle = new Bottle (stage);
+            this._bottle = new Bottle (stage, '#cccccc');
             this.addActor (this._bottle);
         }
 

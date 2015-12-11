@@ -3226,17 +3226,27 @@ var nurdz;
     var game;
     (function (game) {
         /**
-         * The width of the pill bottle, in pills (tiles/segments).
+         * The width of the pill bottle contents area, in pills (tiles/segments).
          *
          * @type {number}
          */
         var BOTTLE_WIDTH = 8;
         /**
-         * The height of the pill bottle, in pills (tiles/segments).
+         * The height of the pill bottle contents area, in pills (tiles/segments).
          *
          * @type {number}
          */
         var BOTTLE_HEIGHT = 16;
+        /**
+         * The width of the margin around the pill bottle contents area, in pills (tiles/segments). This
+         * number of pill segments is added to the overall width and height of the contents area as the area
+         * in which to render the actual bottle.
+         *
+         * As such, half of this margin appears on the left/top and the other half appears on the right/bottom.
+         *
+         * @type {number}
+         */
+        var BOTTLE_MARGIN = 2;
         /**
          * This entity represents the pill bottle, which is responsible for managing the display, detecting
          * matches, and all other core game logic that relates directly the the contents of the game field.
@@ -3250,19 +3260,106 @@ var nurdz;
              * The bottle is responsible for all of the game logic that has to do with the board itself.
              *
              * @param stage the stage that will manage this entity/
+             * @param color the color to render the bottle with
              */
-            function Bottle(stage) {
-                // Calculate how wide the bottle is, in pixels.
-                var pixelWidth = BOTTLE_WIDTH * game.TILE_SIZE;
-                // Configure ourselves to be large and in charge. We're centered on the screen and a couple of
-                // tiles from the top of the screen.
-                _super.call(this, "Bottle", stage, (stage.width / 2) - (pixelWidth / 2), 64, pixelWidth, BOTTLE_HEIGHT * game.TILE_SIZE, 1, {});
-                // TODO This is not creating things empty like it should
+            function Bottle(stage, color) {
+                // Calculate the dimensions of the bottle in pixels. This is inclusive of both the margins and
+                // the inner contents area.
+                var width = (BOTTLE_WIDTH + BOTTLE_MARGIN) * game.TILE_SIZE;
+                var height = (BOTTLE_HEIGHT + BOTTLE_MARGIN) * game.TILE_SIZE;
+                // Configure ourselves to be large and in charge. We center ourselves horizontally on the
+                // stage and place our bottom against the bottom of the stage.
+                _super.call(this, "Bottle", stage, (stage.width / 2) - (width / 2), stage.height - height, width, height, 1, { colorStr: color });
+                // Construct the bottle polygon for later.
+                this._bottlePolygon = this.getBottlePolygon();
+                // Set up the position of the bottle contents to be half the horizontal and vertical margins
+                // away from the top left corner.
+                this._contentOffset = new game.Point((BOTTLE_MARGIN / 2) * game.TILE_SIZE, (BOTTLE_MARGIN / 2) * game.TILE_SIZE);
                 // Fill the bottle contents with empty segments.
                 this._contents = [];
                 for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++)
                     this._contents[i] = new game.Segment(stage, game.Utils.randomIntInRange(0, game.SegmentType.SEGMENT_COUNT - 1), game.Utils.randomIntInRange(0, 2));
             }
+            Object.defineProperty(Bottle.prototype, "properties", {
+                get: function () { return this._properties; },
+                enumerable: true,
+                configurable: true
+            });
+            /**
+             * Given the current values for the bottle size, calculate and return a polygon that will render
+             * the outline of the bottle.
+             *
+             * @returns {Polygon} the bottle polygon
+             */
+            Bottle.prototype.getBottlePolygon = function () {
+                var retVal = [];
+                // Alias half of a tile, since we're going to be using that a lot.
+                var halfTile = (game.TILE_SIZE / 2);
+                // The opening in the bottle is always exactly 2 segments wide (large enough for a single pill
+                // to enter it), aligned to the segment boundary, and as close to being centered as possible.
+                //
+                // Calculate how many segments there are to the left and right of the bottle opening. The
+                // right hand side is easier to calculate because it's a simple subtraction to determine
+                // what's left.
+                //
+                // Note that we use Math.floor here so that if the bottle is an odd number of segments wide,
+                // things still work as expected.
+                var leftEdgeSegments = Math.floor((BOTTLE_WIDTH + BOTTLE_MARGIN - 2) / 2);
+                var rightEdgeSegments = BOTTLE_WIDTH + BOTTLE_MARGIN - 2 - leftEdgeSegments;
+                // Create an origin point.
+                var point = new game.Point(0, 0);
+                // Translate the p0int above by the values passed in, then store the new point into the return
+                // value array as an array of two numbers.
+                function storeOffset(xOffs, yOffs) {
+                    point.translateXY(xOffs, yOffs);
+                    retVal.push(point.toArray());
+                }
+                // The top left corner of the exterior of the bottle starts at the center of the segment that
+                // the origin is in and goes down for the entire height less one segment (because the bottle
+                // walls are half a segment in thickness.
+                storeOffset(halfTile, halfTile);
+                storeOffset(0, (BOTTLE_HEIGHT + BOTTLE_MARGIN - 1) * game.TILE_SIZE);
+                // Now we go across for the width less one segment and back up.
+                storeOffset((BOTTLE_WIDTH + BOTTLE_MARGIN - 1) * game.TILE_SIZE, 0);
+                storeOffset(0, -(BOTTLE_HEIGHT + BOTTLE_MARGIN - 1) * game.TILE_SIZE);
+                // Draw the top right side of the bottle. This requires us to move left, up, left, down and
+                // right, which will end us 1/2 a tile (the thickness of the bottle walls) left and down from
+                // where we started.
+                storeOffset(-(rightEdgeSegments - 1) * game.TILE_SIZE, 0);
+                storeOffset(0, -halfTile);
+                storeOffset(-halfTile, 0);
+                storeOffset(0, game.TILE_SIZE);
+                storeOffset((rightEdgeSegments - 1) * game.TILE_SIZE, 0);
+                // Now describe the interior of the bottle walls by going down, left and back up.
+                storeOffset(0, BOTTLE_HEIGHT * game.TILE_SIZE);
+                storeOffset(-BOTTLE_WIDTH * game.TILE_SIZE, 0);
+                storeOffset(0, -BOTTLE_HEIGHT * game.TILE_SIZE);
+                // Now describe the top left part of the bottle in the same manner as we did to the top right,
+                // only we're starting on the inside and going out instead of the other way around.
+                storeOffset((leftEdgeSegments - 1) * game.TILE_SIZE, 0);
+                storeOffset(0, -game.TILE_SIZE);
+                storeOffset(-halfTile, 0);
+                storeOffset(0, halfTile);
+                return retVal;
+            };
+            /**
+             * This method is responsible for rendering the bottle image. This assumes that there is a total
+             * margin (in tiles) or BOTTLE_MARGIN around the content area of the bottle, and that the rendering
+             * of the bottle should thus take no more than (BOTTLE_MARGIN * TILE_WIDTH) / 2 pixels on each side.
+             *
+             * @param x the x location to render the bottle image at
+             * @param y the y location to render the bottle image at
+             * @param renderer the renderer to use to render the bottle.
+             */
+            Bottle.prototype.renderBottle = function (x, y, renderer) {
+                // Let the super render our background for us so we can determine if the bounds of the bottle
+                // object are correct or not.
+                //super.render (x, y, renderer);
+                // Translate the canvass to our rendering position and set up to fill with our bottle color.
+                renderer.translateAndRotate(x, y);
+                renderer.fillPolygon(this._bottlePolygon, this._properties.colorStr);
+                renderer.restore();
+            };
             /**
              * Render ourselves to the screen, along with our contents
              * @param x the X location to render at
@@ -3270,15 +3367,20 @@ var nurdz;
              * @param renderer the renderer to use to render ourselves
              */
             Bottle.prototype.render = function (x, y, renderer) {
-                // Let the super render our background for us
-                _super.prototype.render.call(this, x, y, renderer);
-                for (var x_1 = 0; x_1 < BOTTLE_WIDTH; x_1++) {
-                    for (var y_1 = 0; y_1 < BOTTLE_HEIGHT; y_1++) {
+                // Start by rendering the bottle.
+                this.renderBottle(x, y, renderer);
+                // Now iterate over our contents and render it out. Here we do a transform to put the origin
+                // at the point on the canvas where the top left of the bottle interior is, so that we don't
+                // have to do an extra translation for everything.
+                renderer.translateAndRotate(x + this._contentOffset.x, y + this._contentOffset.y);
+                for (var y_1 = 0, i = 0; y_1 < BOTTLE_HEIGHT; y_1++) {
+                    for (var x_1 = 0; x_1 < BOTTLE_WIDTH; x_1++, i++) {
                         // Get the segment and render it.
-                        var segment = this._contents[y_1 * BOTTLE_WIDTH + x_1];
-                        segment.render(x_1 * game.TILE_SIZE + this._position.x, y_1 * game.TILE_SIZE + this._position.y, renderer);
+                        var segment = this._contents[i];
+                        segment.render(x_1 * game.TILE_SIZE, y_1 * game.TILE_SIZE, renderer);
                     }
                 }
+                renderer.restore();
             };
             /**
              * Given a position on the stage, this will determine if that position is inside the contents area
@@ -3291,13 +3393,15 @@ var nurdz;
              */
             Bottle.prototype.segmentAtStagePosition = function (stagePos) {
                 // If it's inside the bottle, we can do something with it.
-                if (stagePos.x >= this._position.x && stagePos.y >= this._position.y &&
-                    stagePos.x < this._position.x + this._width &&
-                    stagePos.y < this._position.y + this._height) {
+                if (stagePos.x >= this._position.x + this._contentOffset.x &&
+                    stagePos.y >= this._position.y + this._contentOffset.y &&
+                    stagePos.x < this._position.x + this._width - this._contentOffset.x &&
+                    stagePos.y < this._position.y + this._height - this._contentOffset.y) {
                     // Convert the position to a tile by first transforming the point to be relative to the
                     // origin of the screen and then constraining it to a tile dimension. We do this in a copy
                     // so as to not modify the point provided to us.
-                    stagePos = stagePos.copyTranslatedXY(-this._position.x, -this._position.y).reduce(game.TILE_SIZE);
+                    stagePos = stagePos.copyTranslatedXY(-this._position.x - this._contentOffset.x, -this._position.y - this._contentOffset.y)
+                        .reduce(game.TILE_SIZE);
                     // Get the segment clicked on and twiddle its type.
                     return this._contents[stagePos.y * BOTTLE_WIDTH + stagePos.x];
                 }
@@ -3345,7 +3449,7 @@ var nurdz;
                 this._debugSegment = new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE);
                 // Create a bottle entity to hold the game board contents and add it as an actor so that its
                 // update and render methods will get called.
-                this._bottle = new game.Bottle(stage);
+                this._bottle = new game.Bottle(stage, '#cccccc');
                 this.addActor(this._bottle);
             }
             /**
