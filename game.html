@@ -9,12 +9,12 @@
     <title>&#8478; (Dr. Mario clone)</title>
     <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="game.css" rel="stylesheet">
-      <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-      <!--[if lt IE 9]>
-        <!--suppress ALL -->
-        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
-        <!--suppress ALL -->
-        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <!--suppress ALL -->
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <!--suppress ALL -->
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
 </head>
 <body>
@@ -68,7 +68,6 @@
                         for a Dr. Mario type game.</p>
                     <p>This probably won't turn into a full fledged prototype, but more just an
                         exploration of the logic needed for the capsules in the pill bottle, such as
-                        gravity, holding power while not broken, and so no.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -86,9 +85,16 @@
                 </div>
                 <div class="modal-body">
                     <dl>
+                        <dt>1 through 7</dt>
+                        <dd>Select a segment type to insert</dd>
+                        <dt>C</dt>
+                        <dd>Change the color of the currently selected segment in the segment list</dd>
+                        <dt>V</dt>
+                        <dd>Change the virus polygon of the virus segment to the next possible virus</dd>
                         <dt>Mouse Click</dt>
-                        <dd>Toggle the type of capsule segment that is clicked on between all of the
-                            possible states.</dd>
+                        <dd>Alter the segment clicked in the bottle to be the currently selected segment,
+                            including its color.
+                        </dd>
                     </dl>
                 </div>
                 <div class="modal-footer">

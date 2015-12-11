@@ -28,10 +28,23 @@ module nurdz.game
         protected _renderer : CanvasRenderer;
 
         /**
-         * For debug purposes we display all possible segments; this is used to render them in the most
-         * horrifically stupid way possible.
+         * An array of segments that we create to the left of the bottle. There is one of each possible
+         * segment type stored here, which we render in a horizontal row. This is used for debug purposes
+         * to show us the various entities for filling the bottle during testing.
          */
-        private _debugSegment : Segment;
+        private _segments : Array<Segment>;
+
+        /**
+         * The selected segment in the segment array above, which is the segment that a left mouse click
+         * inside the bottle will insert. This gets changed via the keyboard and is visualized by the pointer.
+         */
+        private _segmentIndex : number;
+
+        /**
+         * This is a simple pointer entity that marks which of the segments in the segment array above is
+         * currently the "selected" entity for insertion into the bottle.
+         */
+        private _pointer : Pointer;
 
         /**
          * The bottle that holds the game area.
@@ -50,36 +63,39 @@ module nurdz.game
             // Invoke the super to set up our instance.
             super (name, stage);
 
-            // Create a simple segment to use for debug rendering. The type and color don't really matter.
-            this._debugSegment = new Segment (stage, SegmentType.EMPTY, SegmentColor.BLUE);
+            // Create an array of segments that represent all of the possible segment types. We default
+            // the selected segment to be the virus.
+            //
+            // NOTE: The code that alters the virus polygon model assumes that the elements in this list
+            // are ordered by their SegmentType value.
+            this._segmentIndex = 1;
+            this._segments = [
+                new Segment (stage, SegmentType.EMPTY, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.VIRUS, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.SINGLE, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.LEFT, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.RIGHT, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.TOP, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.BOTTOM, SegmentColor.BLUE),
+            ];
 
-            // Create a bottle entity to hold the game board contents and add it as an actor so that its
-            // update and render methods will get called.
+            // Iterate the list of segments and set them to nice positions.
+            for (let i = 0, x = TILE_SIZE / 2 ; i < this._segments.length ; i++, x += TILE_SIZE)
+                this._segments[i].setStagePositionXY (x, TILE_SIZE);
+
+            // Create our pointer pointing to the selected segment in the segment list.
+            this._pointer = new Pointer (stage,
+                this._segments[this._segmentIndex].position.x,
+                this._segments[this._segmentIndex].position.y - TILE_SIZE);
+
+            // Create the bottle that will hold te game board and its contents.
             this._bottle = new Bottle (stage, '#cccccc');
-            this.addActor (this._bottle);
-        }
 
-        /**
-         * Draw the debug segment at the provided X and Y location (specifying the top left of the cell in
-         * which to display it), providing also the type it should render itself as and its color.
-         *
-         * If the type provided is virus, the virus polygon is also changed to the polygon value provided.
-         *
-         * @param x the X location to render at
-         * @param y the Y location to render at
-         * @param type the type to render as
-         * @param color the color to use
-         * @param poly the virus polygon to use (values between 0-2 inclusive()
-         */
-        private drawSegment (x : number, y : number, type : SegmentType, color : SegmentColor,
-                             poly : number = 0)
-        {
-            // Swap the type and color, and then invoke the rendering method.
-            this._debugSegment.type = type;
-            if (type == SegmentType.VIRUS)
-                this._debugSegment.virusPolygon = poly;
-            this._debugSegment.color = color;
-            this._debugSegment.render (x, y, this._renderer);
+            // Now add all of our entities to ourselves. This will cause them to get updated and drawn
+            // automagically.
+            this.addActorArray (this._segments);
+            this.addActor (this._pointer);
+            this.addActor (this._bottle);
         }
 
         /**
@@ -89,48 +105,8 @@ module nurdz.game
          */
         render ()
         {
-            // Clear the canvas
+            // Clear the canvas, then let the super render everything for us.
             this._renderer.clear ('black');
-
-            // Draw one of each segment type in all of our colors.
-            this.drawSegment (32, 32, SegmentType.SINGLE, SegmentColor.BLUE);
-            this.drawSegment (64, 32, SegmentType.SINGLE, SegmentColor.RED);
-            this.drawSegment (96, 32, SegmentType.SINGLE, SegmentColor.YELLOW);
-
-            this.drawSegment (32, 64, SegmentType.TOP, SegmentColor.BLUE);
-            this.drawSegment (64, 64, SegmentType.TOP, SegmentColor.RED);
-            this.drawSegment (96, 64, SegmentType.TOP, SegmentColor.YELLOW);
-
-            this.drawSegment (32, 96, SegmentType.BOTTOM, SegmentColor.BLUE);
-            this.drawSegment (64, 96, SegmentType.BOTTOM, SegmentColor.RED);
-            this.drawSegment (96, 96, SegmentType.BOTTOM, SegmentColor.YELLOW);
-
-            this.drawSegment (32, 128, SegmentType.LEFT, SegmentColor.BLUE);
-            this.drawSegment (64, 128, SegmentType.LEFT, SegmentColor.RED);
-            this.drawSegment (96, 128, SegmentType.LEFT, SegmentColor.YELLOW);
-
-            this.drawSegment (32, 160, SegmentType.RIGHT, SegmentColor.BLUE);
-            this.drawSegment (64, 160, SegmentType.RIGHT, SegmentColor.RED);
-            this.drawSegment (96, 160, SegmentType.RIGHT, SegmentColor.YELLOW);
-
-            // Throw in a virus of each color. As a hack this manually swaps the polygon around every
-            // time. Dear lord. The poly remains set until changed, so we only need to cause that
-            // terribleness to happen three times per frame and not 9. Yay?
-            this.drawSegment (32, 192, SegmentType.VIRUS, SegmentColor.BLUE, 0);
-            this.drawSegment (64, 192, SegmentType.VIRUS, SegmentColor.RED);
-            this.drawSegment (96, 192, SegmentType.VIRUS, SegmentColor.YELLOW);
-
-            this._debugSegment.virusPolygon = 1;
-            this.drawSegment (32, 224, SegmentType.VIRUS, SegmentColor.BLUE, 1);
-            this.drawSegment (64, 224, SegmentType.VIRUS, SegmentColor.RED);
-            this.drawSegment (96, 224, SegmentType.VIRUS, SegmentColor.YELLOW);
-
-            this._debugSegment.virusPolygon = 2;
-            this.drawSegment (32, 256, SegmentType.VIRUS, SegmentColor.BLUE, 2);
-            this.drawSegment (64, 256, SegmentType.VIRUS, SegmentColor.RED);
-            this.drawSegment (96, 256, SegmentType.VIRUS, SegmentColor.YELLOW);
-
-            // Invoke the super to draw the bottle for us.
             super.render ();
         }
 
@@ -146,18 +122,19 @@ module nurdz.game
             var segment = this._bottle.segmentAtStagePosition (this._stage.calculateMousePos (eventObj));
             if (segment != null)
             {
-                segment.properties.type++;
-                if (segment.properties.type >= SegmentType.SEGMENT_COUNT)
-                    segment.properties.type = 0;
+                // We got a segment. Copy the type, color and virus polygon from the currently selected
+                // segment.
+                let selected = this._segments[this._segmentIndex];
 
-                if (segment.properties.type == SegmentType.VIRUS)
-                    segment.virusPolygon = Utils.randomIntInRange (0, 2);
+                // Copy the type, color and polygon over.
+                segment.type = selected.type;
+                segment.color = selected.color;
+                segment.virusPolygon = selected.virusPolygon;
             }
 
             // Yeah, we did a thing, even if we didn't find a segment.
             return true;
         }
-
 
         /**
          * This triggers when a keyboard key is pressed.
@@ -168,14 +145,45 @@ module nurdz.game
          */
         inputKeyDown (eventObj : KeyboardEvent) : boolean
         {
-            // F5 takes a screenshot.
-            if (eventObj.keyCode == KeyCodes.KEY_F5)
+            switch (eventObj.keyCode)
             {
-                this.screenshot ("rx", "Rx Clone Screenshot");
-                return true;
+                // F5 takes a screenshot.
+                case KeyCodes.KEY_F5:
+                    this.screenshot ("rx", "Rx Clone Screenshot");
+                    return true;
+
+                // The C key cycles the segment color
+                case KeyCodes.KEY_C:
+                    let color = this._segments[0].properties.color + 1;
+                    if (color > 2)
+                        color = 0;
+                    for (let i = 0 ; i < this._segments.length ; i++)
+                        this._segments[i].color = color;
+                    return true;
+
+                // The V key cycles the virus poly for the segment with the virus.
+                case KeyCodes.KEY_V:
+                    let poly = this._segments[SegmentType.VIRUS].virusPolygon + 1;
+                    if (poly == this._segments[SegmentType.VIRUS].virusPolygonCount)
+                        poly = 0;
+                    this._segments[SegmentType.VIRUS].virusPolygon = poly;
+                    return true;
+
+                // The number keys from 1 to 7 select a segment. This changes the index of the selected
+                // item and also changes where the arrow is pointing.
+                case KeyCodes.KEY_1:
+                case KeyCodes.KEY_2:
+                case KeyCodes.KEY_3:
+                case KeyCodes.KEY_4:
+                case KeyCodes.KEY_5:
+                case KeyCodes.KEY_6:
+                case KeyCodes.KEY_7:
+                    this._segmentIndex = eventObj.keyCode - KeyCodes.KEY_1;
+                    this._pointer.position.x = this._segments[this._segmentIndex].position.x;
+                    return true;
             }
 
-            return super.inputKeyDown (eventObj);
+            return false;
         }
     }
 }

@@ -136,6 +136,17 @@ var nurdz;
             KeyCodes[KeyCodes["KEY_UP"] = 38] = "KEY_UP";
             KeyCodes[KeyCodes["KEY_RIGHT"] = 39] = "KEY_RIGHT";
             KeyCodes[KeyCodes["KEY_DOWN"] = 40] = "KEY_DOWN";
+            // Number keys
+            KeyCodes[KeyCodes["KEY_0"] = 48] = "KEY_0";
+            KeyCodes[KeyCodes["KEY_1"] = 49] = "KEY_1";
+            KeyCodes[KeyCodes["KEY_2"] = 50] = "KEY_2";
+            KeyCodes[KeyCodes["KEY_3"] = 51] = "KEY_3";
+            KeyCodes[KeyCodes["KEY_4"] = 52] = "KEY_4";
+            KeyCodes[KeyCodes["KEY_5"] = 53] = "KEY_5";
+            KeyCodes[KeyCodes["KEY_6"] = 54] = "KEY_6";
+            KeyCodes[KeyCodes["KEY_7"] = 55] = "KEY_7";
+            KeyCodes[KeyCodes["KEY_8"] = 56] = "KEY_8";
+            KeyCodes[KeyCodes["KEY_9"] = 57] = "KEY_9";
             // Alpha keys; these are all a single case because shift state is tracked separately.
             KeyCodes[KeyCodes["KEY_A"] = 65] = "KEY_A";
             KeyCodes[KeyCodes["KEY_B"] = 66] = "KEY_B";
@@ -3052,11 +3063,20 @@ var nurdz;
             ]
         };
         /**
+         * The complete list of all available virus polygon models.
+         *
+         * @type {Array<VirusModel>}
+         */
+        var virusPolygonList = [virusOne, virusTwo, virusThree];
+        /**
          * Everything that can be rendered inside of the bottle in the game is a segment of some sort, be it a
          * capsule portion, a virus or even just empty space.
          */
         var Segment = (function (_super) {
             __extends(Segment, _super);
+            /**************************************************************************************************
+             * DEBUG END
+             *************************************************************************************************/
             /**
              * Construct a new segment
              *
@@ -3085,26 +3105,17 @@ var nurdz;
                 enumerable: true,
                 configurable: true
             });
-            Object.defineProperty(Segment.prototype, "virusPolygon", {
-                /**
-                 * Change the polygon used to render this segment when it is rendered as a virus.
-                 *
-                 * @param poly a value in the range of 0 to 2 inclusive, to select the appropriate virus polygon.
-                 * Out of range values are treated as 0.
-                 */
-                set: function (poly) {
-                    var polyArray = [virusOne, virusTwo, virusThree];
-                    if (poly < 0 || poly > 2)
-                        poly = 0;
-                    this._properties.poly = polyArray[poly];
-                },
-                enumerable: true,
-                configurable: true
-            });
             Object.defineProperty(Segment.prototype, "type", {
                 /**
-                 * Change the segment type of this segment to be the new type.
-                 * @param type
+                 * Get the currently selected segment type of this segment.
+                 *
+                 * @returns {SegmentType} the current segment type as taken from the properties.
+                 */
+                get: function () { return this._properties.type; },
+                /**
+                 * Change the segment type of this segment to be the new type. No bounds checking is done.
+                 *
+                 * @param type the new type of this segment, which is set into our properties.
                  */
                 set: function (type) { this._properties.type = type; },
                 enumerable: true,
@@ -3112,12 +3123,57 @@ var nurdz;
             });
             Object.defineProperty(Segment.prototype, "color", {
                 /**
-                 * Change the segment color of this segment to be the new color.
+                 * Get the color that this segment renders as when drawn.
+                 *
+                 * @returns {SegmentColor} the current segment color of this segment.
+                 */
+                get: function () { return this._properties.color; },
+                /**
+                 * Change the segment color of this segment to be the new color. This updates both of the color
+                 * properties so that the segment will actually render in the correct color.
                  */
                 set: function (color) {
                     this._properties.color = color;
                     this._properties.colorStr = RENDER_COLORS[color];
                 },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Segment.prototype, "virusPolygon", {
+                /**
+                 * Get the numeric index of the polygon used to render this segment if it renders as a polygon.
+                 *
+                 * @returns {number} the polygon index.
+                 */
+                get: function () { return this._virusPolygon; },
+                /**
+                 * Change the polygon used to render this segment when it is rendered as a virus.
+                 *
+                 * @param poly the numeric value of the virus polygon to use. Out of range values are constrained
+                 * to the extremes of the possible values.
+                 */
+                set: function (poly) {
+                    // Range check the value and then store it.
+                    if (poly < 0)
+                        poly = 0;
+                    if (poly > virusPolygonList.length - 1)
+                        poly = virusPolygonList.length - 1;
+                    // Store the new integer value, then set the value as appropriate.
+                    this._virusPolygon = poly;
+                    this._properties.poly = virusPolygonList[poly];
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Segment.prototype, "virusPolygonCount", {
+                /**
+                 * Returns the number of distinct virus polygons that can be applied to the virusPolygon property
+                 * in order to vary their visual appearance. The values that can be applied to the virusPolygon
+                 * property range from 0 to this value - 1.
+                 *
+                 * @returns {number} the total number of distinct virus polygon values.
+                 */
+                get: function () { return virusPolygonList.length; },
                 enumerable: true,
                 configurable: true
             });
@@ -3278,7 +3334,7 @@ var nurdz;
                 // Fill the bottle contents with empty segments.
                 this._contents = [];
                 for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++)
-                    this._contents[i] = new game.Segment(stage, game.Utils.randomIntInRange(0, game.SegmentType.SEGMENT_COUNT - 1), game.Utils.randomIntInRange(0, 2));
+                    this._contents[i] = new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE);
             }
             Object.defineProperty(Bottle.prototype, "properties", {
                 get: function () { return this._properties; },
@@ -3418,6 +3474,82 @@ var nurdz;
     var game;
     (function (game) {
         /**
+         * This entity represents a simplistic pointer, which is just a tile sized entity that appears to
+         * slowly flash and points downwards. It's used for our debug logic.
+         */
+        var Pointer = (function (_super) {
+            __extends(Pointer, _super);
+            /**
+             * Create the pointer object to be owned by the stage.
+             *
+             * @param stage the stage that owns this pointer
+             * @param x the X location of the pointer
+             * @param y the Y location of the pointer`
+             */
+            function Pointer(stage, x, y) {
+                _super.call(this, "Cursor", stage, x, y, game.TILE_SIZE, game.TILE_SIZE, 1, {});
+                /**
+                 * This number increments on every update; when it hits a certain value, our color flips.
+                 *
+                 * @type {number}
+                 */
+                this._count = 0;
+                /**
+                 * The index into the color list that indicates what color to render ourselves.
+                 *
+                 * @type {number}
+                 */
+                this._colorIndex = 0;
+                /**
+                 * The list of colors that we use to display ourselves.
+                 *
+                 * @type {Array<string>}
+                 */
+                this._colors = ['#ffffff', '#aaaaaa'];
+                /**
+                 * The polygon that represents us.
+                 *
+                 * @type {Polygon}
+                 */
+                this._poly = [[4, 4], [game.TILE_SIZE - 4, 4], [game.TILE_SIZE / 2, game.TILE_SIZE - 4]];
+            }
+            /**
+             * Called every frame to update ourselves. This causes our color to change.
+             *
+             * @param stage the stage that owns us.
+             */
+            Pointer.prototype.update = function (stage) {
+                this._count++;
+                if (this._count == 7) {
+                    this._count = 0;
+                    this._colorIndex++;
+                    if (this._colorIndex == this._colors.length)
+                        this._colorIndex = 0;
+                }
+            };
+            /**
+             * Render ourselves as a downward facing arrow.
+             *
+             * @param x the X location of where to draw ourselves
+             * @param y the Y location of where to draw ourselves
+             * @param renderer the renderer to use to draw ourselves
+             */
+            Pointer.prototype.render = function (x, y, renderer) {
+                renderer.translateAndRotate(x, y, null);
+                renderer.fillPolygon(this._poly, this._colors[this._colorIndex]);
+                //renderer.fillPolygon (this._poly, 'white');
+                renderer.restore();
+            };
+            return Pointer;
+        })(game.Entity);
+        game.Pointer = Pointer;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
+    var game;
+    (function (game) {
+        /**
          * The width of the pill bottle, in pills (tiles).
          *
          * @type {number}
@@ -3445,73 +3577,42 @@ var nurdz;
             function GameScene(name, stage) {
                 // Invoke the super to set up our instance.
                 _super.call(this, name, stage);
-                // Create a simple segment to use for debug rendering. The type and color don't really matter.
-                this._debugSegment = new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE);
-                // Create a bottle entity to hold the game board contents and add it as an actor so that its
-                // update and render methods will get called.
+                // Create an array of segments that represent all of the possible segment types. We default
+                // the selected segment to be the virus.
+                //
+                // NOTE: The code that alters the virus polygon model assumes that the elements in this list
+                // are ordered by their SegmentType value.
+                this._segmentIndex = 1;
+                this._segments = [
+                    new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.VIRUS, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.SINGLE, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.LEFT, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.RIGHT, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.TOP, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.BOTTOM, game.SegmentColor.BLUE),
+                ];
+                // Iterate the list of segments and set them to nice positions.
+                for (var i = 0, x = game.TILE_SIZE / 2; i < this._segments.length; i++, x += game.TILE_SIZE)
+                    this._segments[i].setStagePositionXY(x, game.TILE_SIZE);
+                // Create our pointer pointing to the selected segment in the segment list.
+                this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
+                // Create the bottle that will hold te game board and its contents.
                 this._bottle = new game.Bottle(stage, '#cccccc');
+                // Now add all of our entities to ourselves. This will cause them to get updated and drawn
+                // automagically.
+                this.addActorArray(this._segments);
+                this.addActor(this._pointer);
                 this.addActor(this._bottle);
             }
-            /**
-             * Draw the debug segment at the provided X and Y location (specifying the top left of the cell in
-             * which to display it), providing also the type it should render itself as and its color.
-             *
-             * If the type provided is virus, the virus polygon is also changed to the polygon value provided.
-             *
-             * @param x the X location to render at
-             * @param y the Y location to render at
-             * @param type the type to render as
-             * @param color the color to use
-             * @param poly the virus polygon to use (values between 0-2 inclusive()
-             */
-            GameScene.prototype.drawSegment = function (x, y, type, color, poly) {
-                if (poly === void 0) { poly = 0; }
-                // Swap the type and color, and then invoke the rendering method.
-                this._debugSegment.type = type;
-                if (type == game.SegmentType.VIRUS)
-                    this._debugSegment.virusPolygon = poly;
-                this._debugSegment.color = color;
-                this._debugSegment.render(x, y, this._renderer);
-            };
             /**
              * Render our scene.
              *
              * Currently this method DOES NOT chain to the superclass, so it doesn't render any actors/entities.
              */
             GameScene.prototype.render = function () {
-                // Clear the canvas
+                // Clear the canvas, then let the super render everything for us.
                 this._renderer.clear('black');
-                // Draw one of each segment type in all of our colors.
-                this.drawSegment(32, 32, game.SegmentType.SINGLE, game.SegmentColor.BLUE);
-                this.drawSegment(64, 32, game.SegmentType.SINGLE, game.SegmentColor.RED);
-                this.drawSegment(96, 32, game.SegmentType.SINGLE, game.SegmentColor.YELLOW);
-                this.drawSegment(32, 64, game.SegmentType.TOP, game.SegmentColor.BLUE);
-                this.drawSegment(64, 64, game.SegmentType.TOP, game.SegmentColor.RED);
-                this.drawSegment(96, 64, game.SegmentType.TOP, game.SegmentColor.YELLOW);
-                this.drawSegment(32, 96, game.SegmentType.BOTTOM, game.SegmentColor.BLUE);
-                this.drawSegment(64, 96, game.SegmentType.BOTTOM, game.SegmentColor.RED);
-                this.drawSegment(96, 96, game.SegmentType.BOTTOM, game.SegmentColor.YELLOW);
-                this.drawSegment(32, 128, game.SegmentType.LEFT, game.SegmentColor.BLUE);
-                this.drawSegment(64, 128, game.SegmentType.LEFT, game.SegmentColor.RED);
-                this.drawSegment(96, 128, game.SegmentType.LEFT, game.SegmentColor.YELLOW);
-                this.drawSegment(32, 160, game.SegmentType.RIGHT, game.SegmentColor.BLUE);
-                this.drawSegment(64, 160, game.SegmentType.RIGHT, game.SegmentColor.RED);
-                this.drawSegment(96, 160, game.SegmentType.RIGHT, game.SegmentColor.YELLOW);
-                // Throw in a virus of each color. As a hack this manually swaps the polygon around every
-                // time. Dear lord. The poly remains set until changed, so we only need to cause that
-                // terribleness to happen three times per frame and not 9. Yay?
-                this.drawSegment(32, 192, game.SegmentType.VIRUS, game.SegmentColor.BLUE, 0);
-                this.drawSegment(64, 192, game.SegmentType.VIRUS, game.SegmentColor.RED);
-                this.drawSegment(96, 192, game.SegmentType.VIRUS, game.SegmentColor.YELLOW);
-                this._debugSegment.virusPolygon = 1;
-                this.drawSegment(32, 224, game.SegmentType.VIRUS, game.SegmentColor.BLUE, 1);
-                this.drawSegment(64, 224, game.SegmentType.VIRUS, game.SegmentColor.RED);
-                this.drawSegment(96, 224, game.SegmentType.VIRUS, game.SegmentColor.YELLOW);
-                this._debugSegment.virusPolygon = 2;
-                this.drawSegment(32, 256, game.SegmentType.VIRUS, game.SegmentColor.BLUE, 2);
-                this.drawSegment(64, 256, game.SegmentType.VIRUS, game.SegmentColor.RED);
-                this.drawSegment(96, 256, game.SegmentType.VIRUS, game.SegmentColor.YELLOW);
-                // Invoke the super to draw the bottle for us.
                 _super.prototype.render.call(this);
             };
             /**
@@ -3524,11 +3625,13 @@ var nurdz;
                 // happen inside the bottle contents area.
                 var segment = this._bottle.segmentAtStagePosition(this._stage.calculateMousePos(eventObj));
                 if (segment != null) {
-                    segment.properties.type++;
-                    if (segment.properties.type >= game.SegmentType.SEGMENT_COUNT)
-                        segment.properties.type = 0;
-                    if (segment.properties.type == game.SegmentType.VIRUS)
-                        segment.virusPolygon = game.Utils.randomIntInRange(0, 2);
+                    // We got a segment. Copy the type, color and virus polygon from the currently selected
+                    // segment.
+                    var selected = this._segments[this._segmentIndex];
+                    // Copy the type, color and polygon over.
+                    segment.type = selected.type;
+                    segment.color = selected.color;
+                    segment.virusPolygon = selected.virusPolygon;
                 }
                 // Yeah, we did a thing, even if we didn't find a segment.
                 return true;
@@ -3541,12 +3644,40 @@ var nurdz;
              * @returns {boolean} true if the key was handled, false otherwise.
              */
             GameScene.prototype.inputKeyDown = function (eventObj) {
-                // F5 takes a screenshot.
-                if (eventObj.keyCode == game.KeyCodes.KEY_F5) {
-                    this.screenshot("rx", "Rx Clone Screenshot");
-                    return true;
+                switch (eventObj.keyCode) {
+                    // F5 takes a screenshot.
+                    case game.KeyCodes.KEY_F5:
+                        this.screenshot("rx", "Rx Clone Screenshot");
+                        return true;
+                    // The C key cycles the segment color
+                    case game.KeyCodes.KEY_C:
+                        var color = this._segments[0].properties.color + 1;
+                        if (color > 2)
+                            color = 0;
+                        for (var i = 0; i < this._segments.length; i++)
+                            this._segments[i].color = color;
+                        return true;
+                    // The V key cycles the virus poly for the segment with the virus.
+                    case game.KeyCodes.KEY_V:
+                        var poly = this._segments[game.SegmentType.VIRUS].virusPolygon + 1;
+                        if (poly == this._segments[game.SegmentType.VIRUS].virusPolygonCount)
+                            poly = 0;
+                        this._segments[game.SegmentType.VIRUS].virusPolygon = poly;
+                        return true;
+                    // The number keys from 1 to 7 select a segment. This changes the index of the selected
+                    // item and also changes where the arrow is pointing.
+                    case game.KeyCodes.KEY_1:
+                    case game.KeyCodes.KEY_2:
+                    case game.KeyCodes.KEY_3:
+                    case game.KeyCodes.KEY_4:
+                    case game.KeyCodes.KEY_5:
+                    case game.KeyCodes.KEY_6:
+                    case game.KeyCodes.KEY_7:
+                        this._segmentIndex = eventObj.keyCode - game.KeyCodes.KEY_1;
+                        this._pointer.position.x = this._segments[this._segmentIndex].position.x;
+                        return true;
                 }
-                return _super.prototype.inputKeyDown.call(this, eventObj);
+                return false;
             };
             return GameScene;
         })(game.Scene);
