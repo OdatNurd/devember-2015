@@ -98,9 +98,7 @@ module nurdz.game
             // Fill the bottle contents with empty segments.
             this._contents = [];
             for (let i = 0 ; i < BOTTLE_WIDTH * BOTTLE_HEIGHT ; i++)
-                this._contents[i] = new game.Segment (stage,
-                    Utils.randomIntInRange (0, SegmentType.SEGMENT_COUNT - 1),
-                    Utils.randomIntInRange (0, 2));
+                this._contents[i] = new game.Segment (stage, SegmentType.EMPTY, SegmentColor.BLUE);
         }
 
         /**
