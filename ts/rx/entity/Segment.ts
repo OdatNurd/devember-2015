@@ -201,6 +201,9 @@ module nurdz.game
         ]
     };
 
+    /**
+     * The properties that a segment can have.
+     */
     interface SegmentProperties extends EntityProperties
     {
         /**
@@ -364,7 +367,7 @@ module nurdz.game
         {
             // Invoke the super, which will render a background for us at our dimensions, which we can use
             // for debugging purposes to ensure that we're drawing correctly.
-            super.render (x, y, renderer);
+            //super.render (x, y, renderer);
 
             // Based on our type, invoke the appropriate render method.
             switch (this._properties.type)

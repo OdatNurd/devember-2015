@@ -3178,7 +3178,7 @@ var nurdz;
             Segment.prototype.render = function (x, y, renderer) {
                 // Invoke the super, which will render a background for us at our dimensions, which we can use
                 // for debugging purposes to ensure that we're drawing correctly.
-                _super.prototype.render.call(this, x, y, renderer);
+                //super.render (x, y, renderer);
                 // Based on our type, invoke the appropriate render method.
                 switch (this._properties.type) {
                     // If we're empty, just return.
