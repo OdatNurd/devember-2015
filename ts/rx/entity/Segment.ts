@@ -202,6 +202,13 @@ module nurdz.game
     };
 
     /**
+     * The complete list of all available virus polygon models.
+     *
+     * @type {Array<VirusModel>}
+     */
+    const virusPolygonList : Array<VirusModel> = [virusOne, virusTwo, virusThree];
+
+    /**
      * The properties that a segment can have.
      */
     interface SegmentProperties extends EntityProperties
@@ -209,7 +216,7 @@ module nurdz.game
         /**
          * The segment type. This is used for game logic and for rendering.
          */
-            type? : SegmentType;
+        type? : SegmentType;
 
         /**
          * The color of this segment. This is a value that allows for comparisons and is used to set up
@@ -219,12 +226,13 @@ module nurdz.game
 
         /**
          * When the segment type is a virus, this represents the polygon that should be used to render it.
+         * This is selected at construction time.
          */
         poly? : VirusModel;
 
         /**
          * The color specification to be used for this segment when it is rendered. This is set from the
-         * color member.
+         * color member at construction time and is not updated when the color property is updated.
          */
         colorStr? : string;
     }
@@ -243,35 +251,102 @@ module nurdz.game
         get properties () : SegmentProperties
         { return this._properties; }
 
-        /**
-         * Change the polygon used to render this segment when it is rendered as a virus.
+        /****************************************************************************************************
+         * DEBUG START
          *
-         * @param poly a value in the range of 0 to 2 inclusive, to select the appropriate virus polygon.
-         * Out of range values are treated as 0.
-         */
-        set virusPolygon (poly : number)
-        {
-            let polyArray = [virusOne, virusTwo, virusThree];
-            if (poly < 0 || poly > 2)
-                poly = 0;
-            this._properties.poly = polyArray[poly];
-        }
+         * Everything between this section start and the closing section below is here purely for debugging
+         * support. In particular the values here contravene things by setting properties directly, which
+         * is only needed while we're testing things out.
+         *
+         * In actual use, these would not be needed because the values would be randomly set at creation
+         * time as appropriate and then left alone.
+         ***************************************************************************************************/
 
         /**
-         * Change the segment type of this segment to be the new type.
-         * @param type
+         * This numeric value ranges over the length of the virus polygon list, and indicates which index
+         * corresponds to the value of the "poly" property that specifies what polygon is being used when
+         * this segment is marked as being a virus.
+         *
+         * DEBUG ONLY: this is only needed for debugging purposes during initial development; in practice this
+         * information is not needed.
+         */
+        private _virusPolygon : number;
+
+        /**
+         * Get the currently selected segment type of this segment.
+         *
+         * @returns {SegmentType} the current segment type as taken from the properties.
+         */
+        get type () : SegmentType
+        { return this._properties.type; }
+
+        /**
+         * Change the segment type of this segment to be the new type. No bounds checking is done.
+         *
+         * @param type the new type of this segment, which is set into our properties.
          */
         set type (type : SegmentType)
         { this._properties.type = type; }
 
         /**
-         * Change the segment color of this segment to be the new color.
+         * Get the color that this segment renders as when drawn.
+         *
+         * @returns {SegmentColor} the current segment color of this segment.
+         */
+        get color () : SegmentColor
+        { return this._properties.color; }
+
+        /**
+         * Change the segment color of this segment to be the new color. This updates both of the color
+         * properties so that the segment will actually render in the correct color.
          */
         set color (color : SegmentColor)
         {
             this._properties.color = color;
             this._properties.colorStr = RENDER_COLORS[color];
         }
+
+        /**
+         * Get the numeric index of the polygon used to render this segment if it renders as a polygon.
+         *
+         * @returns {number} the polygon index.
+         */
+        get virusPolygon () : number
+        { return this._virusPolygon; }
+
+
+        /**
+         * Change the polygon used to render this segment when it is rendered as a virus.
+         *
+         * @param poly the numeric value of the virus polygon to use. Out of range values are constrained
+         * to the extremes of the possible values.
+         */
+        set virusPolygon (poly : number)
+        {
+            // Range check the value and then store it.
+            if (poly < 0)
+                poly = 0;
+            if (poly > virusPolygonList.length - 1)
+                poly = virusPolygonList.length - 1;
+
+            // Store the new integer value, then set the value as appropriate.
+            this._virusPolygon = poly;
+            this._properties.poly = virusPolygonList[poly];
+        }
+
+        /**
+         * Returns the number of distinct virus polygons that can be applied to the virusPolygon property
+         * in order to vary their visual appearance. The values that can be applied to the virusPolygon
+         * property range from 0 to this value - 1.
+         *
+         * @returns {number} the total number of distinct virus polygon values.
+         */
+        get virusPolygonCount () : number
+        { return virusPolygonList.length; }
+
+        /**************************************************************************************************
+         * DEBUG END
+         *************************************************************************************************/
 
         /**
          * Construct a new segment
