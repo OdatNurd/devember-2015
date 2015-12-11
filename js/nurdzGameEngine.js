@@ -3278,6 +3278,30 @@ var nurdz;
                 this.renderCapsuleSegment(renderer);
                 renderer.restore();
             };
+            /**
+             * Based on the type of the segment that this is, return wether or not this segment is susceptible
+             * to gravity.
+             *
+             * Note that this tells you if something CAN fall, not if it SHOULD fall, because a segment has no
+             * idea of what it might be adjacent to.
+             *
+             * @returns {boolean} true if this segment can be affected by gravity or false if it can not
+             */
+            Segment.prototype.canFall = function () {
+                // Check based on type.
+                switch (this._properties.type) {
+                    // Single segments, LEFT segments and BOTTOM segments can fall.
+                    case SegmentType.SINGLE:
+                    case SegmentType.LEFT:
+                    case SegmentType.BOTTOM:
+                        return true;
+                    // Everything else cannot; viruses are always held in place, and the RIGHT/TOP segments
+                    // get pulled along when the capsule segment they're attached to move. So even though they
+                    // technically CAN fall, we report that they can't.
+                    default:
+                        return false;
+                }
+            };
             return Segment;
         })(game.Entity);
         game.Segment = Segment;
@@ -3299,6 +3323,13 @@ var nurdz;
          * @type {number}
          */
         var BOTTLE_HEIGHT = 16;
+        /**
+         * The number of frame updates that happen between checks to see if the contents of the bottle should
+         * drop down or not.
+         *
+         * @type {number}
+         */
+        var CONTENT_DROP_TICKS = 15;
         /**
          * The width of the margin around the pill bottle contents area, in pills (tiles/segments). This
          * number of pill segments is added to the overall width and height of the contents area as the area
@@ -3332,6 +3363,8 @@ var nurdz;
                 // Configure ourselves to be large and in charge. We center ourselves horizontally on the
                 // stage and place our bottom against the bottom of the stage.
                 _super.call(this, "Bottle", stage, (stage.width / 2) - (width / 2), stage.height - height, width, height, 1, { colorStr: color });
+                // Start our tick count initialized.
+                this._ticks = 0;
                 // Construct the bottle polygon for later.
                 this._bottlePolygon = this.getBottlePolygon();
                 // Set up the position of the bottle contents to be half the horizontal and vertical margins
@@ -3443,6 +3476,127 @@ var nurdz;
                     }
                 }
                 renderer.restore();
+            };
+            /**
+             * This gets invoked every frame prior to our render method being called.
+             *
+             * Here we see if it's time for the game state to advance, and if so, we do it.
+             *
+             * @param stage the stage that owns us.
+             */
+            Bottle.prototype.update = function (stage) {
+                // Count this frame update as a tick.
+                this._ticks++;
+                // Have enough ticks passed for us to do a check and see if it's time for the contents of the
+                // bottle to drop?
+                if (this._ticks % CONTENT_DROP_TICKS == 0)
+                    this.contentGravityStep();
+            };
+            /**
+             * Given A location in the bottle contents, return the segment object at that location, or null if
+             * the location is not valid.
+             *
+             * @param x the X location in the bottle to get the segment for
+             * @param y the Y location in the bottle to get the segment for
+             * @returns {Segment} the segment at the given location, or null if that location is invalid
+             */
+            Bottle.prototype.segmentAt = function (x, y) {
+                // If the location provided is not inside the contents of the bottle, then it is not empty space.
+                if (x < 0 || y < 0 || x >= BOTTLE_WIDTH || y >= BOTTLE_HEIGHT)
+                    return null;
+                // Return empty status
+                return this._contents[y * BOTTLE_WIDTH + x];
+            };
+            /**
+             * Given a location in the bottle contents, check to see if that position is empty or not.
+             *
+             * When the location provided is out of range for the bottle contents, false is always returned.
+             *
+             * @param x the X location in the bottle to check
+             * @param y the Y location in the bottle to check
+             * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
+             * is not or the position is not inside the bottle
+             */
+            Bottle.prototype.isEmpty = function (x, y) {
+                // Get the segment at the provided location. If we got one, return if it's empty. If the
+                // location is invalid, the method returns null, in which case we assume that the space is not
+                // empty.
+                var segment = this.segmentAt(x, y);
+                if (segment != null)
+                    return segment.properties.type == game.SegmentType.EMPTY;
+                return false;
+            };
+            /**
+             * Cause the segment at the provided location to drop down in the bottle contents.
+             *
+             * Since we assume that the only way for a segment to drop is if the space under it is empty, this
+             * operates by swapping the position of the item specified and the item that is below it in the grid.
+             *
+             * This is faster than modifying a bunch of properties, but it does mean that this should not be
+             * called for items that don't have a blank space under them or which don't have ANY space under
+             * them (i.e. at the bottom of the bottle).
+             *
+             * @param x the X location of the segment to drop
+             * @param y the Y location of the segment to drop
+             */
+            Bottle.prototype.dropSegment = function (x, y) {
+                // Calculate the offset of the segment provided and the segment below it.
+                var topOffs = y * BOTTLE_WIDTH + x;
+                var bottomOffs = (y + 1) * BOTTLE_WIDTH + x;
+                // Swap the two values around.
+                var temp = this._contents[bottomOffs];
+                this._contents[bottomOffs] = this._contents[topOffs];
+                this._contents[topOffs] = temp;
+            };
+            /**
+             * Perform one gravity step for the contents of the bottle.
+             *
+             * This scans the entire bottle for segments that are hanging in mid-air when they should not be,
+             * and drops them down if possible.
+             *
+             * This takes care to make sure that capsules are dropped as connected units (e.g. a LEFT and
+             * RIGHT will drop together, but only if there is space for both of them to drop).
+             *
+             * What this does NOT take into account is bottle contents that violate the constraints of the
+             * game. For example, a LEFT always drags what is to it's immediate right down with it, even if
+             * that segment is for example a Virus, which is always stationary, because there is no valid
+             * state in the game for a LEFT to be on the board without a RIGHT being next to it.
+             */
+            Bottle.prototype.contentGravityStep = function () {
+                // Scan the entire contents of the bottle from left to right and top to bottom. We start from
+                // the second row from the bottom, since the segments on the bottom can't move down anyway.
+                for (var y = BOTTLE_HEIGHT - 2; y >= 0; y--) {
+                    for (var x = 0; x < BOTTLE_WIDTH; x++) {
+                        // Get the segment at the position we are currently considering.
+                        var segment = this.segmentAt(x, y);
+                        // Check and see if we are subject to gravity here. If we are not, we can skip to the
+                        // next element.
+                        //
+                        // In particular, we are not susceptible to gravity when:
+                        //   o This segment is not affected by gravity (e.g. a virus)
+                        //   o The segment under us is not empty, so there is no place to fall
+                        //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
+                        //     side to drop.
+                        if (segment.canFall() == false || this.isEmpty(x, y + 1) == false ||
+                            segment.properties.type == game.SegmentType.LEFT && this.isEmpty(x + 1, y + 1) == false)
+                            continue;
+                        // Drop ourselves down, and then based on our type, possibly also drop down something
+                        // else.
+                        this.dropSegment(x, y);
+                        switch (segment.properties.type) {
+                            // When this segment is a left segment, we also need to drop the segment to our
+                            // right, which should be a RIGHT.
+                            case game.SegmentType.LEFT:
+                                this.dropSegment(x + 1, y);
+                                break;
+                            // When this segment is a BOTTOM, we also need to drop the segment above us, which
+                            // should be a TOP.
+                            case game.SegmentType.BOTTOM:
+                                this.dropSegment(x, y - 1);
+                                break;
+                        }
+                    }
+                }
             };
             /**
              * Given a position on the stage, this will determine if that position is inside the contents area

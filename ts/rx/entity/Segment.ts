@@ -496,5 +496,33 @@ module nurdz.game
             this.renderCapsuleSegment (renderer);
             renderer.restore ();
         }
+
+        /**
+         * Based on the type of the segment that this is, return wether or not this segment is susceptible
+         * to gravity.
+         *
+         * Note that this tells you if something CAN fall, not if it SHOULD fall, because a segment has no
+         * idea of what it might be adjacent to.
+         *
+         * @returns {boolean} true if this segment can be affected by gravity or false if it can not
+         */
+        canFall () : boolean
+        {
+            // Check based on type.
+            switch (this._properties.type)
+            {
+                // Single segments, LEFT segments and BOTTOM segments can fall.
+                case SegmentType.SINGLE:
+                case SegmentType.LEFT:
+                case SegmentType.BOTTOM:
+                    return true;
+
+                // Everything else cannot; viruses are always held in place, and the RIGHT/TOP segments
+                // get pulled along when the capsule segment they're attached to move. So even though they
+                // technically CAN fall, we report that they can't.
+                default:
+                    return false;
+            }
+        }
     }
 }
