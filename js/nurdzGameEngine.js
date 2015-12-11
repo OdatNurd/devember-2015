@@ -394,6 +394,23 @@ var nurdz;
                 return this;
             };
             /**
+             * Set the position of this point to the first two values in the array passed in, where the first
+             * value is treated as the X value and the second value is treated as the Y value.
+             *
+             * It is valid for the array to have more than two elements, but if it has fewer than two, nothing
+             * happens.
+             *
+             * @param array the array to get the new values from.
+             * @returns {Point} this point after the operation completes, for chaining calls.
+             */
+            Point.prototype.setToArray = function (array) {
+                if (array.length >= 2) {
+                    this._x = array[0];
+                    this._y = array[1];
+                    return this;
+                }
+            };
+            /**
              * Compares this point to the point passed in to determine if they represent the same point.
              *
              * @param other the point to compare to
@@ -534,6 +551,14 @@ var nurdz;
                 this.clampX(0, stage.width - 1);
                 this.clampY(0, stage.height - 1);
                 return this;
+            };
+            /**
+             * Return a copy of this point as an array of two numbers in x, y ordering.
+             *
+             * @returns {Array<number>} the point as an array of two numbers.
+             */
+            Point.prototype.toArray = function () {
+                return [this._x, this._y];
             };
             /**
              * Return a string representation of the object, for debugging purposes.
@@ -1401,6 +1426,26 @@ var nurdz;
                 this._canvasContext.fillStyle = color;
                 this._canvasContext.beginPath();
                 this._canvasContext.arc(x, y, radius, 0, Math.PI * 2, true);
+                this._canvasContext.fill();
+            };
+            /**
+             * Render an arbitrary polygon by connecting all of the points provided in the polygon and then
+             * filling the result.
+             *
+             * The points should be in the polygon in clockwise order.
+             *
+             * @param pointList the list of points that describe the polygon to render.
+             * @param color the color to fill the polygon with.
+             */
+            CanvasRenderer.prototype.fillPolygon = function (pointList, color) {
+                // Set the color and begin our polygon.
+                this._canvasContext.fillStyle = color;
+                this._canvasContext.beginPath();
+                // Use the first point to start the polygon, then join the rest of the points together in turn.
+                this._canvasContext.moveTo(pointList[0][0], pointList[0][1]);
+                for (var i = 1; i < pointList.length; i++)
+                    this._canvasContext.lineTo(pointList[i][0], pointList[i][1]);
+                // FIll the shape now. This closes the shape by connecting the start and end point for us.
                 this._canvasContext.fill();
             };
             /**
