@@ -105,44 +105,34 @@ module nurdz.game
     const SEGMENT_SIZE = TILE_SIZE - 2;
 
     /**
-     * This specifies the special structure that represents the list of points that make up a virus. This
-     * doesn't actually generate any code, but it does tell the TypeScript compiler what we expect the
-     * data structure to look like so that it can do compile time checks for us.
+     * This specifies the special structure that represents the list of polygons that make up a virus for
+     * display. This doesn't actually generate any code, but it does tell the TypeScript compiler what we
+     * expect the data structure to look like so that it can do compile time checks for us.
      *
-     * All of the points in the array are stored as an array of two elements, of which the first element
-     * is the X and the second element is the Y.
-     *
-     * Each of the parts is an array of such points, which should be in clockwise order and are joined
-     * together to form a polygon.
-     *
-     * All point coordinates assumes that the top left of the cell in which they will be rendered is 0, 0
+     * All polygon coordinates assumes that the top left of the cell in which they will be rendered is 0, 0
      * so they are essentially offsets.
-     *
-     * Note that nothing in here stops the values in the array from being smaller than 0 or bigger than
-     * TILE_SIZE except for how terrible that will look at run time.
      */
-    type PointArray = Array<Array<number>>;
-    interface VirusPoints
+    interface VirusModel
     {
         /**
          * The main body of the virus; this is rendered in the virus color.
          */
-        body: PointArray;
+        body: Polygon;
 
         /**
          * The two eyes and the mouth. These are rendered in a different color than the body is, for contrast.
          */
-        leftEye: PointArray;
-        rightEye: PointArray;
-        mouth: PointArray;
+        leftEye: Polygon;
+        rightEye: Polygon;
+        mouth: Polygon;
     }
 
     /**
      * The first variant of virus.
      *
-     * @type {VirusPoints}
+     * @type {VirusModel}
      */
-    const virusOne : VirusPoints = {
+    const virusOne : VirusModel = {
         body: [
             [21, 4], [25, 6], [28, 2], [28, 4], [27, 7], [30, 13], [30, 15], [22, 28], [10, 28], [2, 15],
             [2, 13], [5, 7], [4, 4], [4, 2], [7, 6], [11, 4]
@@ -164,9 +154,9 @@ module nurdz.game
     /**
      * The second variant of virus.
      *
-     * @type {VirusPoints}
+     * @type {VirusModel}
      */
-    const virusTwo : VirusPoints = {
+    const virusTwo : VirusModel = {
         body: [
             [16, 2], [21, 4], [23, 4], [28, 2], [28, 4], [27, 7], [30, 13], [30, 15], [27, 20], [30, 24],
             [25, 23], [22, 28], [20, 26], [12, 26], [10, 28], [7, 23], [2, 24], [5, 20], [2, 15], [2, 13],
@@ -189,9 +179,9 @@ module nurdz.game
     /**
      * The third variant of virus.
      *
-     * @type {VirusPoints}
+     * @type {VirusModel}
      */
-    const virusThree : VirusPoints = {
+    const virusThree : VirusModel = {
         body: [
             [16, 1], [18, 4], [23, 4], [28, 2], [28, 4], [26, 6], [28, 13], [28, 15], [27, 20], [30, 24],
             [25, 23], [22, 30], [20, 25], [12, 25], [10, 30], [7, 23], [2, 24], [5, 20], [4, 15], [4, 13],
@@ -216,7 +206,7 @@ module nurdz.game
         /**
          * The segment type. This is used for game logic and for rendering.
          */
-        type? : SegmentType;
+            type? : SegmentType;
 
         /**
          * The color of this segment. This is a value that allows for comparisons and is used to set up
@@ -227,7 +217,7 @@ module nurdz.game
         /**
          * When the segment type is a virus, this represents the polygon that should be used to render it.
          */
-        poly? : VirusPoints;
+        poly? : VirusModel;
 
         /**
          * The color specification to be used for this segment when it is rendered. This is set from the
@@ -301,38 +291,10 @@ module nurdz.game
 
             // If this is a virus, we need to set the polygon too.
             if (type == SegmentType.VIRUS)
-                this.virusPolygon = Utils.randomIntInRange(0, 2);
+                this.virusPolygon = Utils.randomIntInRange (0, 2);
 
             // Lastly, we need to set up the color string based on the color specification we were given.
             this._properties.colorStr = RENDER_COLORS[this._properties.color];
-        }
-
-        /**
-         * Render the point array provided as a polygon filled with the provided color. The passed in data
-         * should be an array of points (stored as an array of two numbers in x, y order) that wind in a
-         * clockwise manner. The last point will be implicitly joined to the first point.
-         *
-         * This call assumes that the points passed in are in a 0 based origin and that the underlying canvas
-         * has been translated to put the origin at the upper left corner of where the polygon should
-         * actually be rendered.
-         *
-         * @param renderer the renderer to render the polygon with.
-         * @param points the point array to render as a polygon
-         * @param color the color to fill with
-         */
-        private fillPolygon (renderer : CanvasRenderer, points : PointArray, color : string)
-        {
-            // Set the color and begin our polygon.
-            renderer.context.fillStyle = color;
-            renderer.context.beginPath ();
-
-            // Use the first point to start the polygon, then join the rest of the points together in turn.
-            renderer.context.moveTo(points[0][0], points[0][1]);
-            for (let i = 1 ; i < points.length ; i++)
-                renderer.context.lineTo(points[i][0], points[i][1]);
-
-            // FIll the shape now. This closes the shape by connecting the start and end point for us.
-            renderer.context.fill ();
         }
 
         /**
@@ -351,10 +313,10 @@ module nurdz.game
                 vColor = '#cccccc';
 
             // Render out all of the polygons now.
-            this.fillPolygon (renderer, this._properties.poly.body, this._properties.colorStr);
-            this.fillPolygon (renderer, this._properties.poly.leftEye, vColor);
-            this.fillPolygon (renderer, this._properties.poly.rightEye, vColor);
-            this.fillPolygon (renderer, this._properties.poly.mouth, vColor);
+            renderer.fillPolygon (this._properties.poly.body, this._properties.colorStr);
+            renderer.fillPolygon (this._properties.poly.leftEye, vColor);
+            renderer.fillPolygon (this._properties.poly.rightEye, vColor);
+            renderer.fillPolygon (this._properties.poly.mouth, vColor);
         };
 
         /**

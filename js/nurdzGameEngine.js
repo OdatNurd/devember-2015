@@ -2930,8 +2930,8 @@ var nurdz;
              * always falls when the LEFT falls, so when we see a RIGHT, we skip over it and consider it
              * already handled.
              */
-            SegmentType[SegmentType["LEFT"] = 2] = "LEFT";
-            SegmentType[SegmentType["RIGHT"] = 3] = "RIGHT";
+            SegmentType[SegmentType["LEFT"] = 3] = "LEFT";
+            SegmentType[SegmentType["RIGHT"] = 4] = "RIGHT";
             /**
              * These two segment types represent the top and bottom segments of a vertical pill capsule. A TOP
              * always has a BOTTOM under it and vice versa. When one half of the pill is destroyed, the other
@@ -2942,14 +2942,14 @@ var nurdz;
              * from the bottom to the top, the TOP always falls when the BOTTOM falls, so when we see a TOP, we
              * skip over it and consider it already handled.
              */
-            SegmentType[SegmentType["TOP"] = 4] = "TOP";
-            SegmentType[SegmentType["BOTTOM"] = 5] = "BOTTOM";
+            SegmentType[SegmentType["TOP"] = 5] = "TOP";
+            SegmentType[SegmentType["BOTTOM"] = 6] = "BOTTOM";
             /**
              * This one is not valid and only here to tell us how many segment types there are, which is
              * important during debugging when we have to cycle between segments but otherwise is not
              * interesting.
              */
-            SegmentType[SegmentType["SEGMENT_COUNT"] = 6] = "SEGMENT_COUNT";
+            SegmentType[SegmentType["SEGMENT_COUNT"] = 7] = "SEGMENT_COUNT";
         })(game.SegmentType || (game.SegmentType = {}));
         var SegmentType = game.SegmentType;
         /**
@@ -2992,7 +2992,7 @@ var nurdz;
         /**
          * The first variant of virus.
          *
-         * @type {VirusPoints}
+         * @type {VirusModel}
          */
         var virusOne = {
             body: [
@@ -3012,7 +3012,7 @@ var nurdz;
         /**
          * The second variant of virus.
          *
-         * @type {VirusPoints}
+         * @type {VirusModel}
          */
         var virusTwo = {
             body: [
@@ -3033,7 +3033,7 @@ var nurdz;
         /**
          * The third variant of virus.
          *
-         * @type {VirusPoints}
+         * @type {VirusModel}
          */
         var virusThree = {
             body: [
@@ -3122,30 +3122,6 @@ var nurdz;
                 configurable: true
             });
             /**
-             * Render the point array provided as a polygon filled with the provided color. The passed in data
-             * should be an array of points (stored as an array of two numbers in x, y order) that wind in a
-             * clockwise manner. The last point will be implicitly joined to the first point.
-             *
-             * This call assumes that the points passed in are in a 0 based origin and that the underlying canvas
-             * has been translated to put the origin at the upper left corner of where the polygon should
-             * actually be rendered.
-             *
-             * @param renderer the renderer to render the polygon with.
-             * @param points the point array to render as a polygon
-             * @param color the color to fill with
-             */
-            Segment.prototype.fillPolygon = function (renderer, points, color) {
-                // Set the color and begin our polygon.
-                renderer.context.fillStyle = color;
-                renderer.context.beginPath();
-                // Use the first point to start the polygon, then join the rest of the points together in turn.
-                renderer.context.moveTo(points[0][0], points[0][1]);
-                for (var i = 1; i < points.length; i++)
-                    renderer.context.lineTo(points[i][0], points[i][1]);
-                // FIll the shape now. This closes the shape by connecting the start and end point for us.
-                renderer.context.fill();
-            };
-            /**
              * Render ourselves as a virus using the virus polygon provided. This assumes that the rendering
              * context has already been translated to put the origin at the top left corner of the cell to render
              * the virus into.
@@ -3159,10 +3135,10 @@ var nurdz;
                 if (this._properties.color == SegmentColor.BLUE)
                     vColor = '#cccccc';
                 // Render out all of the polygons now.
-                this.fillPolygon(renderer, this._properties.poly.body, this._properties.colorStr);
-                this.fillPolygon(renderer, this._properties.poly.leftEye, vColor);
-                this.fillPolygon(renderer, this._properties.poly.rightEye, vColor);
-                this.fillPolygon(renderer, this._properties.poly.mouth, vColor);
+                renderer.fillPolygon(this._properties.poly.body, this._properties.colorStr);
+                renderer.fillPolygon(this._properties.poly.leftEye, vColor);
+                renderer.fillPolygon(this._properties.poly.rightEye, vColor);
+                renderer.fillPolygon(this._properties.poly.mouth, vColor);
             };
             ;
             /**
