@@ -55,6 +55,18 @@ module nurdz.game
         BOTTOM,
 
         /**
+         * This segment type represents a segment that used to be one of the above (non-empty) values, but
+         * during a matching phase, was found to be a part of a match. Such segments are converted into
+         * segments of this type, which hang around for a brief period after the match phase is over
+         * before they convert into EMPTY segments, allowing things to drop down.
+         *
+         * This allows for a visual representation of a match that remains for a short period of time prior
+         * to vanishing away. This is critical in a came like Rx where chained moves are possible, to allow
+         * you to better visualize what is happening.
+         */
+        MATCHED,
+
+        /**
          * This one is not valid and only here to tell us how many segment types there are, which is
          * important during debugging when we have to cycle between segments but otherwise is not
          * interesting.
@@ -213,10 +225,12 @@ module nurdz.game
      */
     interface SegmentProperties extends EntityProperties
     {
+        // @formatter:off
         /**
          * The segment type. This is used for game logic and for rendering.
          */
         type? : SegmentType;
+        // @formatter:on
 
         /**
          * The color of this segment. This is a value that allows for comparisons and is used to set up
@@ -415,6 +429,14 @@ module nurdz.game
                     renderer.fillCircle (0, 0, SEGMENT_SIZE / 2, this._properties.colorStr);
                     return;
 
+                // A segment that is a part of a match. This is an intermediate state between when a match
+                // has been detected and when the segment is made empty.
+                case SegmentType.MATCHED:
+                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 3, this._properties.colorStr);
+                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 4, '#000000');
+                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 5, this._properties.colorStr);
+                    return;
+
                 // The remainder of the cases are (or should be) one of the four capsule segments that are
                 // meant to be joined together to be a single capsule. This always renders as a right
                 // handed segment because we assume the canvas has been rotated as appropriate.
@@ -488,6 +510,7 @@ module nurdz.game
 
                 case SegmentType.RIGHT:
                 case SegmentType.SINGLE:
+                case SegmentType.MATCHED:
                     renderer.translateAndRotate (x + (TILE_SIZE / 2), y + (TILE_SIZE / 2), 0);
                     break;
             }
@@ -498,7 +521,7 @@ module nurdz.game
         }
 
         /**
-         * Based on the type of the segment that this is, return wether or not this segment is susceptible
+         * Based on the type of the segment that this is, return whether or not this segment is susceptible
          * to gravity.
          *
          * Note that this tells you if something CAN fall, not if it SHOULD fall, because a segment has no
@@ -523,6 +546,27 @@ module nurdz.game
                 default:
                     return false;
             }
+        }
+
+        /**
+         * Compares some other segment to us to see if they constitute a match or not. This returns true
+         * when the current segment an the passed in segment are both non-empty segments of the same color.
+         *
+         * @param other the other segment to check (can be null)
+         */
+        matches (other : Segment) : boolean
+        {
+            // If we didn't get another segment, or we did but we're not the same color, then we don't match.
+            if (other == null || this._properties.color != other._properties.color)
+                return false;
+
+            // We are the same color and both exist. If either one of us is EMPTY, we can't be a match
+            // because empty doesn't match anything (it's empty).
+            if (this._properties.type == SegmentType.EMPTY || other._properties.type == SegmentType.EMPTY)
+                return false;
+
+            // We are both a non empty segment of the same color, we match.
+            return true;
         }
     }
 }

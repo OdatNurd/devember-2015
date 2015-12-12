@@ -23,6 +23,22 @@ module nurdz.game
     const CONTENT_DROP_TICKS = 15;
 
     /**
+     * The number of frame updates that the results of a match will remain displayed before we remove
+     * them. While match results are displayed, nothing else can drop.
+     *
+     * @type {number}
+     */
+    const MATCH_DISPLAY_TICKS = 10;
+
+    /**
+     * The number of consecutive segments that need to match in a row or column in order to be considered
+     * a match.
+     *
+     * @type {number}
+     */
+    const MATCH_LENGTH = 4;
+
+    /**
      * The width of the margin around the pill bottle contents area, in pills (tiles/segments). This
      * number of pill segments is added to the overall width and height of the contents area as the area
      * in which to render the actual bottle.
@@ -83,6 +99,39 @@ module nurdz.game
         private _ticks : number;
 
         /**
+         * The value of this is true if and only if the last frame update was a frame where gravity was
+         * checked to see if anything should be dropping, AND at least one segment was moved as a result.
+         * Otherwise, this is false.
+         *
+         * This is used to determine when it's time to check for matches, which only has to happen
+         * whenever there was something moving and it has now stopped.
+         */
+        private _dropping : boolean;
+
+        /**
+         * The number of ticks that were on the clock the last time that we allowed a drop to happen. We
+         * use this to space out drops to ensure that they happen at a set interval.
+         */
+        private _dropTicks : number;
+
+        /**
+         * The value of this is true if and only if a match was just found, which means that there are
+         * some segments of type MATCHING currently in the bottle.
+         *
+         * While that is the case, nothing is affected by gravity and the contents are essentially
+         * "frozen" until the match is complete (all MATCHING segments turn to EMPTY) and this boolean
+         * gets set to false.
+         */
+        private _matching : boolean;
+
+        /**
+         * When _matching gets set to true because at least one match was found, this value is set to the
+         * current tick count. This is used to determine when the matched segments have been left visible
+         * long enough so that we can remove them.
+         */
+        private _matchTicks : number;
+
+        /**
          * Construct a new bottle. The bottle is a defined size to render the bottle image itself as well
          * as its contents, and it centers itself on the stage at an appropriate position.
          *
@@ -105,6 +154,11 @@ module nurdz.game
 
             // Start our tick count initialized.
             this._ticks = 0;
+            this._dropTicks = 0;
+
+            // By default, we're not matching and nothing has been dropping.
+            this._dropping = false;
+            this._matching = false;
 
             // Construct the bottle polygon for later.
             this._bottlePolygon = this.getBottlePolygon ();
@@ -252,10 +306,56 @@ module nurdz.game
             // Count this frame update as a tick.
             this._ticks++;
 
-            // Have enough ticks passed for us to do a check and see if it's time for the contents of the
-            // bottle to drop?
-            if (this._ticks % CONTENT_DROP_TICKS == 0)
-                this.contentGravityStep ();
+            // If we're currently displaying matches in the bottle and we've been waiting long enough, go
+            // ahead and clear them out and then remove the flag so more drops can happen.
+            if (this._matching && this._ticks >= this._matchTicks + MATCH_DISPLAY_TICKS)
+            {
+                // Scan over the entire bottle contents and replace all matched segments with empty ones.
+                for (let y = 0 ; y < BOTTLE_HEIGHT ; y++)
+                {
+                    for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
+                    {
+                        let segment = this.segmentAt (x, y);
+                        if (segment.properties.type == SegmentType.MATCHED)
+                            segment.properties.type = SegmentType.EMPTY;
+                    }
+                }
+
+                // No longer matching, so drops can continue now. We will set the drop ticks to the
+                // current tick count to make sure that if a drop can happen right away, it will.
+                this._matching = false;
+                this._dropTicks = this._ticks - CONTENT_DROP_TICKS;
+            }
+
+            // If enough ticks have passed for us to check to see if anything should drop, then do so.
+            // This only happens if we're not currently sitting in a matching state (i.e. the last drop
+            // state caused a match). In that case we skip the drop state to wait for the matching
+            // elements to be removed.
+            if (this._matching == false && this._ticks >= this._dropTicks + CONTENT_DROP_TICKS)
+            {
+                // Do a gravity check to see if there is anything to move.
+                let didDrop = this.contentGravityStep ();
+
+                // If we dropped something the last time that we checked, but this time we didn't, then
+                // it's time to check to see if there is a match because all falling segments have fallen
+                // as far as they can.
+                if (didDrop == false && this._dropping == true)
+                {
+                    // Check for matches, saving the state of whether or not we found a match.
+                    //
+                    // When we find a match, this stops any other drops from happening until we clean up
+                    // the matched segments. We need to capture what the current tick count is so that we
+                    // can time how long the matched segments display before we remove them from the bottle.
+                    if (this._matching = this.checkForMatches ())
+                        this._matchTicks = this._ticks;
+                }
+
+                // Now save the state of this operation for the next time, and save the tick count that we
+                // did this at, so that we know when to start again.
+                this._dropping = didDrop;
+                this._dropTicks = this._ticks;
+            }
+
         }
 
         /**
@@ -336,9 +436,13 @@ module nurdz.game
          * game. For example, a LEFT always drags what is to it's immediate right down with it, even if
          * that segment is for example a Virus, which is always stationary, because there is no valid
          * state in the game for a LEFT to be on the board without a RIGHT being next to it.
+         *
+         * @returns {boolean} true if any capsules were dropped, or false if none were
          */
-        private contentGravityStep () : void
+        private contentGravityStep () : boolean
         {
+            let didDrop = false;
+
             // Scan the entire contents of the bottle from left to right and top to bottom. We start from
             // the second row from the bottom, since the segments on the bottom can't move down anyway.
             for (let y = BOTTLE_HEIGHT - 2 ; y >= 0 ; y--)
@@ -377,8 +481,249 @@ module nurdz.game
                             this.dropSegment (x, y - 1);
                             break;
                     }
+
+                    // Set the flag that indicates that we dropped at least one segment
+                    didDrop = true;
                 }
             }
+
+            return didDrop;
+        }
+
+        /**
+         * Mark the segment at the provided location as a matched segment by converting its segment type
+         * to a MATCHED segment. This also takes care of transforming adjacent connected segments into the
+         * appropriate type (e.g. if this is a LEFT, the RIGHT is turned into a SINGLE).
+         *
+         * @param x the X position to transform
+         * @param y the Y position to transform
+         */
+        private markSegment (x : number, y : number) : void
+        {
+            // Get the segment and then store its current type.
+            let segment = this.segmentAt (x, y);
+            let type = segment.properties.type;
+
+            // If this segment is already a MATCHED segment, then leave without doing anything else, as
+            // this was already taken care of as a part of the match somewhere else.
+            if (type == SegmentType.MATCHED)
+                return;
+
+            // Convert the segment to matched segment and then get the connected segment. This will return
+            // null if the connected segment is out of bounds or if this segment can't have a connection
+            // anyway.
+            segment.properties.type = SegmentType.MATCHED;
+            switch (type)
+            {
+                case SegmentType.LEFT:
+                    segment = this.segmentAt (x + 1, y);
+                    break;
+
+                case SegmentType.RIGHT:
+                    segment = this.segmentAt (x - 1, y);
+                    break;
+
+                case SegmentType.TOP:
+                    segment = this.segmentAt (x, y + 1);
+                    break;
+
+                case SegmentType.BOTTOM:
+                    segment = this.segmentAt (x, y - 1);
+                    break;
+
+                // Nothing to fix up for any other segment
+                default:
+                    segment = null;
+            }
+
+            // If we found a connected segment, mark it as a SINGLE as it is no longer a part of a
+            // complete capsule.
+            if (segment != null)
+                segment.properties.type = SegmentType.SINGLE;
+        }
+
+        /**
+         * Mark the segments for a horizontal match starting at x, y and running for the provided length.
+         * This transforms all of the segments in the match into matched segments, taking care to break
+         * any capsules that might have taken part in the match.
+         *
+         * When horizontal is true, the X,Y represent the left side of a horizontal match to be marked.
+         *
+         * When horizontal is false, the X,y represents the top side of a vertical match to be marked.
+         *
+         * @param x the X location of the start of the match
+         * @param y the Y location of the start of the match
+         * @param matchLength the length of the match in capsules
+         * @param horizontal true if the match is horizontal, false if the match is vertical.
+         */
+        private markMatch (x : number, y : number, matchLength : number, horizontal : boolean) : void
+        {
+            // The number of segments we have marked so far
+            let marked = 0;
+
+            // Keep looping until we have fixed as many things as we were told to mark.
+            while (marked != matchLength)
+            {
+                // If the X or Y is out of bounds, then just leave. This protects us against doing
+                // something quite stupid somewhere.
+                if (x < 0 || y < 0 || x >= BOTTLE_WIDTH || y >= BOTTLE_HEIGHT)
+                {
+                    console.log ("markMatchSegments() passed invalid match to mark");
+                    return;
+                }
+
+                // Mark the item at the current position.
+                this.markSegment (x, y);
+                marked++;
+
+                // If this is a horizontal segment, increment X; otherwise increment Y
+                if (horizontal)
+                    x++;
+                else
+                    y++;
+            }
+        }
+
+        /**
+         * Scan the row of the bottle provided to see if there are any matches. For any matches of an
+         * appropriate length, the matching segments are turned into a MATCHED segment.
+         *
+         * @param y the row in the bottle contents to check for matches
+         * @returns {boolean} true if at least one match was found, false otherwise
+         */
+        private checkRowMatch (y : number) : boolean
+        {
+            // This gets set to true every time we find a match in this row.
+            let foundMatch = false;
+
+            // Scan from left to right. We keep searching until we exceed the position on the right where
+            // we know no more matches can be found because there are not enough positions left.
+            let x = 0;
+            while (x < BOTTLE_WIDTH - MATCH_LENGTH + 1)
+            {
+                // Get the segment at this location.
+                let segment = this.segmentAt (x, y);
+
+                // If we're empty, then skip ahead to the next element; empty segments can't be a part of
+                // a match.
+                if (segment.properties.type == SegmentType.EMPTY)
+                {
+                    x++;
+                    continue;
+                }
+
+                // See how many elements to the right we can go until we find an element that does not
+                // match this one.
+                let searchX = x + 1;
+                while (segment.matches (this.segmentAt (searchX, y)))
+                    searchX++;
+
+                // Calculate how long the match is. If it's long enough, then we need to mark the match
+                // for all of those segments and then set the flag that says that we found a match.
+                let matchLength = searchX - x;
+                if (matchLength >= MATCH_LENGTH)
+                {
+                    this.markMatch (x, y, matchLength, true);
+                    foundMatch = true;
+                }
+
+                // Restart the search now. Since we stopped at the first thing that was not a match with
+                // where we started, we start the next search from there.
+                x = searchX;
+            }
+
+            return foundMatch;
+        }
+
+        /**
+         * Scan the column of the bottle provided to see if there are any matches. For any matches of an
+         * appropriate length, the matching segments are turned into a MATCHED segment.
+         *
+         * @param x the column in the bottle contents to check for matches
+         * @returns {boolean} true if at least one match was found, false otherwise
+         */
+        private checkColumnMatch (x : number) : boolean
+        {
+            // This gets set to true every time we find a match in this row.
+            let foundMatch = false;
+
+            // Scan from left to right. We keep searching until we exceed the position on the right where
+            // we know no more matches can be found because there are not enough positions left.
+            let y = 0;
+            while (y < BOTTLE_HEIGHT - MATCH_LENGTH + 1)
+            {
+                // Get the segment at this location.
+                let segment = this.segmentAt (x, y);
+
+                // If we're empty, then skip ahead to the next element; empty segments can't be a part of
+                // a match.
+                if (segment.properties.type == SegmentType.EMPTY)
+                {
+                    y++;
+                    continue;
+                }
+
+                // See how many elements downwards we can go until we find an element that does not match
+                // this one.
+                let searchY = y + 1;
+                while (segment.matches (this.segmentAt (x, searchY)))
+                    searchY++;
+
+                // Calculate how long the match is. If it's long enough, then we need to mark the match
+                // for all of those segments and then set the flag that says that we found a match.
+                let matchLength = searchY - y;
+                if (matchLength >= MATCH_LENGTH)
+                {
+                    this.markMatch (x, y, matchLength, false);
+                    foundMatch = true;
+                }
+
+                // Restart the search now. Since we stopped at the first thing that was not a match with
+                // where we started, we start the next search from there.
+                y = searchY;
+            }
+
+            return foundMatch;
+        }
+
+
+        /**
+         * Perform a scan to see if there are any matches currently existing in the bottle contents. A
+         * match is a horizontal or vertical row of at least 4 non-empty segments of the same color.
+         *
+         * A horizontal and vertical match are both allowed to intersect, forming one giant match.
+         *
+         * Any such matches found have their segments transformed from their current type into a segment
+         * of type MATCHING, which remains on the board for a few ticks prior to their being made EMPTY.
+         *
+         * @returns {boolean} true if any matches were found, or false otherwise.
+         */
+        private checkForMatches () : boolean
+        {
+            // This flag gets set to true if we find any matches this run and becomes our eventual return
+            // value.
+            let foundMatch = false;
+
+            // Check for matches first on the horizontal and then on the vertical.
+            //
+            // Every match found sets the flag to true so that we can return the affirmative if we found
+            // any matches. The matching functions also take care of marking the matched segments and
+            // splitting apart any partially matched capsules.
+            for (let y = 0 ; y < BOTTLE_HEIGHT ; y++)
+            {
+                if (this.checkRowMatch (y))
+                    foundMatch = true;
+            }
+
+            // Now do the same thing with columns.
+            for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
+            {
+                if (this.checkColumnMatch (x))
+                    foundMatch = true;
+            }
+
+            // Return what we found.
+            return foundMatch;
         }
 
         /**
