@@ -16,11 +16,11 @@ module nurdz.game
 
     /**
      * The number of frame updates that happen between checks to see if the contents of the bottle should
-     * drop down or not.
+     * continue to drop down or not. This essentially controls the speed of how fast things fall.
      *
      * @type {number}
      */
-    const CONTENT_DROP_TICKS = 15;
+    const CONTENT_DROP_TICKS = 5;
 
     /**
      * The number of frame updates that the results of a match will remain displayed before we remove
@@ -321,41 +321,54 @@ module nurdz.game
                     }
                 }
 
-                // No longer matching, so drops can continue now. We will set the drop ticks to the
-                // current tick count to make sure that if a drop can happen right away, it will.
+                // No longer matching, so start a drop operation to see if anything else needs to happen.
                 this._matching = false;
-                this._dropTicks = this._ticks - CONTENT_DROP_TICKS;
+                this._dropping = true;
+                this._dropTicks = -1;
             }
 
-            // If enough ticks have passed for us to check to see if anything should drop, then do so.
-            // This only happens if we're not currently sitting in a matching state (i.e. the last drop
-            // state caused a match). In that case we skip the drop state to wait for the matching
-            // elements to be removed.
-            if (this._matching == false && this._ticks >= this._dropTicks + CONTENT_DROP_TICKS)
+            // If we have been told that we should be dropping things AND enough time has passed since the
+            // last time we did a drop, then try to do a drop now.
+            if (this._dropping == true && this._ticks >= this._dropTicks + CONTENT_DROP_TICKS)
             {
                 // Do a gravity check to see if there is anything to move.
                 let didDrop = this.contentGravityStep ();
 
-                // If we dropped something the last time that we checked, but this time we didn't, then
-                // it's time to check to see if there is a match because all falling segments have fallen
-                // as far as they can.
-                if (didDrop == false && this._dropping == true)
-                {
-                    // Check for matches, saving the state of whether or not we found a match.
-                    //
-                    // When we find a match, this stops any other drops from happening until we clean up
-                    // the matched segments. We need to capture what the current tick count is so that we
-                    // can time how long the matched segments display before we remove them from the bottle.
-                    if (this._matching = this.checkForMatches ())
-                        this._matchTicks = this._ticks;
-                }
+                // If we didn't drop anything, then it's time to check to see if there is a match because all
+                // falling segments have fallen as far as they can. The check function will turn off
+                // dropping and turn on match display if any are found.
+                if (didDrop == false)
+                    this.checkForMatches ();
 
                 // Now save the state of this operation for the next time, and save the tick count that we
-                // did this at, so that we know when to start again.
+                // did this at, so that we know when to start again. This will either stop our drop or let
+                // us take another step.
                 this._dropping = didDrop;
                 this._dropTicks = this._ticks;
             }
 
+        }
+
+        /**
+         * The bottle responds to all triggers by checking for matches, which may also cause a drop.
+         *
+         * This is meant to be invoked every time the capsule that the player is moving around in the bottle
+         * comes to rest, to see if any matches need to happen.
+         *
+         * @param activator always null
+         */
+        trigger (activator : Actor = null) : void
+        {
+            // TODO Really this should always just trigger a match; the drop is just for debugging purposes
+
+            // Set the flag that indicates that a drop should happen now
+            if (activator == null)
+            {
+                this._dropping = true;
+                this._dropTicks = -1;
+            }
+            else
+                this.checkForMatches ();
         }
 
         /**
@@ -696,9 +709,11 @@ module nurdz.game
          * Any such matches found have their segments transformed from their current type into a segment
          * of type MATCHING, which remains on the board for a few ticks prior to their being made EMPTY.
          *
-         * @returns {boolean} true if any matches were found, or false otherwise.
+         * When a match happens, we set a global flag that indicates that we're displaying a match, which
+         * will keep the results displayed for a short period before they vanish away. We also make sure
+         * that no segments drop while the matches are being displayed.
          */
-        private checkForMatches () : boolean
+        private checkForMatches () : void
         {
             // This flag gets set to true if we find any matches this run and becomes our eventual return
             // value.
@@ -722,8 +737,16 @@ module nurdz.game
                     foundMatch = true;
             }
 
-            // Return what we found.
-            return foundMatch;
+            // If we found at least one match, we need to stop any dropping from happening, set up the
+            // flag that indicates that we are displaying matches, and then set the current time so that
+            // the matches display for the proper amount of time before the update() method clears them
+            // away for us.
+            if (foundMatch)
+            {
+                this._dropping = false;
+                this._matching = true;
+                this._matchTicks = this._ticks;
+            }
         }
 
         /**

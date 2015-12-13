@@ -169,6 +169,18 @@ module nurdz.game
                     this._segments[SegmentType.VIRUS].virusPolygon = poly;
                     return true;
 
+                // The Spacebar triggers a drop operation, which is signified by triggering with a null
+                // entity
+                case KeyCodes.KEY_SPACEBAR:
+                    this._bottle.trigger (null);
+                    return true;
+
+                // The M key triggers a match operation, which is signified by triggering with a segment
+                // entity.
+                case KeyCodes.KEY_M:
+                    this._bottle.trigger (this._segments[0]);
+                    return true;
+
                 // The number keys from 1 to 7 select a segment. This changes the index of the selected
                 // item and also changes where the arrow is pointing.
                 case KeyCodes.KEY_1:
