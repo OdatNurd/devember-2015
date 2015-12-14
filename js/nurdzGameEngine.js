@@ -4106,14 +4106,51 @@ var nurdz;
                 _super.prototype.render.call(this);
             };
             /**
+             * Checks to see if the position provided is inside one of the displayed segments to the left of
+             * the bottle; If so, change that segment to be the selected segment for inserting into the bottle.
+             *
+             * Additionally, if the click is on the virus but the virus is already the selected item, swap to
+             * the next virus polygon for insertion.
+             *
+             * @param position the position to check
+             */
+            GameScene.prototype.checkSegmentSelectedAtStagePosition = function (position) {
+                // Get the first and last segment in the segment display
+                var first = this._segments[0];
+                var last = this._segments[this._segments.length - 1];
+                // Return if the point is out of bounds.
+                if (position.x < first.position.x || position.y < first.position.y ||
+                    position.x > last.position.x + last.width ||
+                    position.y > last.position.y + last.height)
+                    return;
+                // The position is in a segment, so translate it to be relative to the position of the first
+                // segment and then turn it into a tile coordinate so that we can use its X value to determine
+                // what the selected index is.
+                position = position.copyTranslatedXY(-first.position.x, -first.position.y).reduce(game.TILE_SIZE);
+                // If the X is the same as the current selected index and the selected index is the virus,
+                // bump its polygon.
+                if (position.x == game.SegmentType.VIRUS && this._segmentIndex == game.SegmentType.VIRUS) {
+                    var poly = this._segments[game.SegmentType.VIRUS].virusPolygon + 1;
+                    if (poly == this._segments[game.SegmentType.VIRUS].virusPolygonCount)
+                        poly = 0;
+                    this._segments[game.SegmentType.VIRUS].virusPolygon = poly;
+                }
+                // Make the selected index match what the position X is. We also need to move the selection
+                // pointer so that we know where to draw it.
+                this._segmentIndex = position.x;
+                this._pointer.position.x = this._segments[this._segmentIndex].position.x;
+            };
+            /**
              * This triggers when a mouse click event happens.
              *
              * @param eventObj the mouse click event
              */
             GameScene.prototype.inputMouseClick = function (eventObj) {
+                // Get the position of the mouse on the stage where the click happened.
+                var mousePosition = this._stage.calculateMousePos(eventObj);
                 // Get the segment at the position where the mouse was clicked. It's null if the click didn't
                 // happen inside the bottle contents area.
-                var segment = this._bottle.segmentAtStagePosition(this._stage.calculateMousePos(eventObj));
+                var segment = this._bottle.segmentAtStagePosition(mousePosition);
                 if (segment != null) {
                     // We got a segment. Copy the type, color and virus polygon from the currently selected
                     // segment.
@@ -4122,7 +4159,11 @@ var nurdz;
                     segment.type = selected.type;
                     segment.color = selected.color;
                     segment.virusPolygon = selected.virusPolygon;
+                    return true;
                 }
+                // If we get here, the click is outside of the bottle. Check to see if the click is selecting
+                // a segment for adding to the stage with the above code.
+                this.checkSegmentSelectedAtStagePosition(mousePosition);
                 // Yeah, we did a thing, even if we didn't find a segment.
                 return true;
             };
