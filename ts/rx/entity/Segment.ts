@@ -80,9 +80,9 @@ module nurdz.game
     export enum SegmentColor
     {
         /**
-         * The segment renders in the blue (chill) color.
+         * Te segment renders in the yellow (weird) color.
          */
-        BLUE,
+        YELLOW,
 
         /**
          * The segment renders in the red (fever) color.
@@ -90,9 +90,9 @@ module nurdz.game
         RED,
 
         /**
-         * Te segment renders in the yellow (???) color.
+         * The segment renders in the blue (chill) color.
          */
-        YELLOW,
+        BLUE,
     }
 
     /**
@@ -102,7 +102,7 @@ module nurdz.game
      *
      * @type {Array<string>}
      */
-    const RENDER_COLORS = ['#0033cc', '#cc3300', '#cccc00'];
+    const RENDER_COLORS = ['cccc00', '#cc3300', '#0033cc'];
 
     /**
      * The overall size of segments in pixels when they are rendered. This should not be any bigger than the
