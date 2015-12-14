@@ -3102,7 +3102,7 @@ var nurdz;
                 _super.call(this, "Segment", stage, 1, 1, game.TILE_SIZE, game.TILE_SIZE, 1, {
                     type: type,
                     color: color
-                }, {}, '#909090');
+                }, {}, '#666666');
                 // If this is a virus, we need to set the polygon too.
                 if (type == SegmentType.VIRUS)
                     this.virusPolygon = game.Utils.randomIntInRange(0, 2);
@@ -3256,9 +3256,10 @@ var nurdz;
              * @param renderer the renderer to use to render ourselves
              */
             Segment.prototype.render = function (x, y, renderer) {
-                // Invoke the super, which will render a background for us at our dimensions, which we can use
-                // for debugging purposes to ensure that we're drawing correctly.
-                //super.render (x, y, renderer);
+                // If we're debugging, invoke the super, which will render a background for us at our dimensions,
+                // which we can use for debugging purposes to ensure that we're drawing correctly.
+                if (this._properties.debug)
+                    _super.prototype.render.call(this, x, y, renderer);
                 // Based on our type, invoke the appropriate render method.
                 switch (this._properties.type) {
                     // If we're empty, just return.
@@ -4060,6 +4061,10 @@ var nurdz;
                 // Iterate the list of segments and set them to nice positions.
                 for (var i = 0, x = game.TILE_SIZE / 2; i < this._segments.length; i++, x += game.TILE_SIZE)
                     this._segments[i].setStagePositionXY(x, game.TILE_SIZE);
+                // Make the empty segment debug so that it renders visibly, and make the virus always use the
+                // same polygon to start with.
+                this._segments[game.SegmentType.EMPTY].properties.debug = true;
+                this._segments[game.SegmentType.VIRUS].virusPolygon = 2;
                 // Create our pointer pointing to the selected segment in the segment list.
                 this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
                 // Create the bottle that will hold te game board and its contents.

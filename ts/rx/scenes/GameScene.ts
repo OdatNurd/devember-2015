@@ -83,6 +83,11 @@ module nurdz.game
             for (let i = 0, x = TILE_SIZE / 2 ; i < this._segments.length ; i++, x += TILE_SIZE)
                 this._segments[i].setStagePositionXY (x, TILE_SIZE);
 
+            // Make the empty segment debug so that it renders visibly, and make the virus always use the
+            // same polygon to start with.
+            this._segments[SegmentType.EMPTY].properties.debug = true;
+            this._segments[SegmentType.VIRUS].virusPolygon = 2;
+
             // Create our pointer pointing to the selected segment in the segment list.
             this._pointer = new Pointer (stage,
                 this._segments[this._segmentIndex].position.x,

@@ -249,6 +249,12 @@ module nurdz.game
          * color member at construction time and is not updated when the color property is updated.
          */
         colorStr? : string;
+
+        /**
+         * This property is optional; if present, a true value indicates that the segment should render
+         * with extra debugging information.
+         */
+        debug? : boolean;
     }
 
     /**
@@ -379,7 +385,7 @@ module nurdz.game
             super ("Segment", stage, 1, 1, TILE_SIZE, TILE_SIZE, 1, <SegmentProperties> {
                 type:  type,
                 color: color
-            }, {}, '#909090');
+            }, {}, '#666666');
 
             // If this is a virus, we need to set the polygon too.
             if (type == SegmentType.VIRUS)
@@ -470,9 +476,10 @@ module nurdz.game
          */
         render (x : number, y : number, renderer : CanvasRenderer) : void
         {
-            // Invoke the super, which will render a background for us at our dimensions, which we can use
-            // for debugging purposes to ensure that we're drawing correctly.
-            //super.render (x, y, renderer);
+            // If we're debugging, invoke the super, which will render a background for us at our dimensions,
+            // which we can use for debugging purposes to ensure that we're drawing correctly.
+            if (this._properties.debug)
+                super.render (x, y, renderer);
 
             // Based on our type, invoke the appropriate render method.
             switch (this._properties.type)
