@@ -29,6 +29,75 @@ module nurdz.game
     const GENERATE_TICK = 0.5;
 
     /**
+     * How many "units" wide the NUMBER_FONT font data points think that it is.
+     *
+     * @type {number}
+     */
+    const FONT_WIDTH = 3;
+
+    /**
+     * How many "units" tall the NUMBER_FONT font data points think that it is.
+     * @type {number}
+     */
+    const FONT_HEIGHT = 5;
+
+    /**
+     * How many "units" should appear between consecutive NUMBER_FONT digits when they are rendered.
+     *
+     * @type {number}
+     */
+    const FONT_SPACING = 0.5;
+
+    /**
+     * This sets how big each unit in the font is when it is rendered. Thus each character in the font
+     * will be FONT_WIDTH * FONT_SCALE pixels wide and FONT_HEIGHT * FONT_SCALE pixels tall. Set as
+     * appropriate.
+     *
+     * @type {number}
+     */
+    const FONT_SCALE = TILE_SIZE / 2;
+
+    /**
+     * An object which maps digits into polygons that can be rendered for a simple numeric display.
+     * The polygon data assumes that the top left of all of the character cells is 0,0 and that each level
+     * is FONT_WIDTH x FONT_HEIGHT units in dimension.
+     *
+     * As such, you probably want to draw this scaled; note that when you scale the canvas, the location
+     * of things rendered is scaled as well. For the purposes of our font, this works out OK.
+     *
+     * @type {Object<string,Polygon>}
+     */
+    var NUMBER_FONT = {
+        "0": [['m', 0, 0], [3, 0], [3, 5], [0, 5], ['c'], ['m', 1, 1], [1, 4], [2, 4], [2, 1]],
+
+        "1": [['m', 1, 0], [2, 0], [2, 5], [1, 5]],
+
+        "2": [['m', 0, 0], [3, 0], [3, 3], [1, 3], [1, 4], [3, 4], [3, 5], [0, 5], [0, 2], [2, 2], [2, 1],
+              [0, 1]],
+
+        "3": [['m', 0, 0], [3, 0], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3], [0, 3], [0, 2], [2, 2], [2, 1],
+              [0, 1]],
+
+        "4": [['m', 0, 0], [1, 0], [1, 2], [2, 2], [2, 0], [3, 0], [3, 5], [2, 5], [2, 3], [0, 3]],
+
+        "5": [['m', 0, 0], [3, 0], [3, 1], [1, 1], [1, 2], [3, 2], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3],
+              [0, 3]],
+
+        "6": [['m', 0, 0], [3, 0], [3, 1], [1, 1], [1, 2], [3, 2], [3, 5], [0, 5], ['c'], ['m', 1, 3], [1, 4],
+              [2, 4], [2, 3]],
+
+        "7": [['m', 0, 0], [3, 0], [3, 5], [2, 5], [2, 1], [1, 1], [1, 2], [0, 2]],
+
+        "8": [['m', 0, 0], [3, 0], [3, 5], [0, 5], ['c'], ['m', 1, 1], [1, 2], [2, 2], [2, 1], ['c'],
+              ['m', 1, 3],
+              [1, 4], [2, 4], [2, 3]],
+
+        "9": [['m', 0, 0], [3, 0], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3], [0, 3], ['m', 1, 1], [1, 2],
+              [2, 2],
+              [2, 1]]
+    };
+
+    /**
      * The scene in which our game is played. This is responsible for drawing the bottle, the pills, and
      * handling the input and game logic.
      */
@@ -164,6 +233,37 @@ module nurdz.game
             // Clear the canvas, then let the super render everything for us.
             this._renderer.clear ('black');
             super.render ();
+
+            // Draw the number of viruses left in the bottle.
+            this.renderNumber (64, 128, 'magenta', this._bottle.virusCount + "");
+        }
+
+        /**
+         * Crudely render a number using our number font.
+         *
+         * @param x the x position to render the top left of the number at
+         * @param y the y position to render the top left of the number at
+         * @param color the color to render the number
+         * @param numString the string to render, which needs to be only digits.
+         */
+        private renderNumber (x : number, y : number, color : string, numString : string) : void
+        {
+
+            for (let i = 0 ; i < numString.length ; i++, x += (FONT_WIDTH * FONT_SCALE) + (FONT_SPACING * FONT_SCALE))
+            {
+                // Translate to where the number should start rendering, then scale the canvas. Since the font
+                // data assumes 1 pixels per unit, the scale sets how many pixels wide each unit turns out.
+                this._renderer.translateAndRotate (x, y);
+                this._renderer.context.scale (FONT_SCALE, FONT_SCALE);
+
+                var polygon = NUMBER_FONT[numString[i]];
+                if (polygon)
+                    this._renderer.fillPolygon (polygon, color);
+
+                this._renderer.restore ();
+
+            }
+
         }
 
         /**
