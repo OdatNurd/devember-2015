@@ -132,6 +132,21 @@ module nurdz.game
         private _matchTicks : number;
 
         /**
+         * The number of viruses that currently exist in the bottle.
+         *
+         * The number starts off at 0; inserting a virus increments the number, and emptying the bottle or
+         * matching a virus decreases it.
+         */
+        private _virusCount : number;
+
+        /**
+         * The number of viruses that currently exist in the bottle.
+         * @returns {number}
+         */
+        get virusCount () : number
+        { return this._virusCount; }
+
+        /**
          * Construct a new bottle. The bottle is a defined size to render the bottle image itself as well
          * as its contents, and it centers itself on the stage at an appropriate position.
          *
@@ -172,13 +187,14 @@ module nurdz.game
             for (let i = 0 ; i < BOTTLE_WIDTH * BOTTLE_HEIGHT ; i++)
                 this._contents[i] = new game.Segment (stage, SegmentType.EMPTY, SegmentColor.BLUE);
 
+            // No viruses to start.
+            this._virusCount = 0;
+
             // For debugging purposes, turn on the debug flag for the first three rows of segments; while
             // generating viruses, this area should never have a virus inserted into it or things go all
             // wonky.
             for (let i = 0 ; i < BOTTLE_WIDTH * 3 ; i++)
                 this._contents[i].properties.debug = true;
-
-            this.generateViruses (20);
         }
 
         /**
@@ -789,31 +805,21 @@ module nurdz.game
         }
 
         /**
-         * Empty the entire contents of the bottle.
-         *
-         * The bottle starts out empty, but you probably want to empty it before starting a new level.
-         */
-        emptyBottle () : void
-        {
-            for (let i = 0 ; i < BOTTLE_WIDTH * BOTTLE_HEIGHT ; i++)
-                this._contents[i].properties.type = SegmentType.EMPTY;
-        }
-
-        /**
          * Generate and insert a virus into the bottle. This replicates the original Dr. Mario virus
          * algorithm for the NES as defined at:
          *     https://tetrisconcept.net/wiki/Dr._Mario
          *
-         * The code in this function currently assumes a fixed bottle size of 8x13 (the actual bottle
-         * contents is 8x16, but there is a headroom of 3 segment positions reserved at the top of the bottle
-         * to ensure that its possible to match the highest virus in the bottle
+         * Per the algorithm, a location is randomly selected in the bottle, but various constraints are
+         * placed on the proximity of like colored viruses to each other. As such it may happen that the
+         * generated position is not valid for virus insertion, in which case the function returns without
+         * doing anything.
          *
          * @param level the level of the game (controls maximum virus height in the bottle)
          * @param virusRemaining the number of viruses left to generate, including this one (controls the
          * color of the virus inserted)
          * @returns {boolean} true if it inserted a virus, or false if it was unable to insert one
          */
-        private insertVirus (level : number, virusRemaining : number) : boolean
+        private attemptInsertVirus (level : number, virusRemaining : number) : boolean
         {
             // The maximum row that the virus can be inserted into the bottle. This is a 0 based row index
             // where row 0 is the bottom of the bottle and the rows proceed upwards.
@@ -971,61 +977,44 @@ module nurdz.game
         }
 
         /**
-         * Generate viruses to fill the bottle. The level is the level of the game; the higher the level,
-         * the higher up in the bottle the viruses end up.
+         * Empty the entire contents of the bottle.
          *
-         * @param level
+         * The bottle starts out empty, but you probably want to empty it before starting a new level.
          */
-        private generateViruses (level : number) : void
+        emptyBottle () : void
         {
-            // Make sure that the bottle is empty before we begin.
-            this.emptyBottle ();
-
-            // Constrain the level passed in to be in a valid range. This should really be 19 as far as
-            // the original NES tables are concerned, but for our purposes we say 20 and treat 20 as 19.
-            //
-            // In practice this only influences the number of viruses present.
-            if (level < 0)
-                level = 0;
-            if (level > 20)
-                level = 20;
-
-            // Calculate the number of viruses to generate in the bottle. There are 4 per level in the NES
-            // version.
-            let virusCount = (level + 1) * 4;
-            console.log ("Level is ", level);
-            console.log ("Generating virus count: ", virusCount);
-
-            // Loop generating viruses until we have generated all of them. The count of remaining viruses
-            // is used during the generation to determine what color the virus to insert should be, so as
-            // to ensure that there is not an overabundance of viruses of one particular color.
-            //
-            // The insertion mechanism sometimes fails to insert a virus because of the restrictions, so
-            // only count a virus inserted if one was actually inserted.
-            let inserted = 0;
-            let skipped = 0;
-            while (virusCount > 0)
-            {
-                if (this.insertVirus (level, virusCount))
-                {
-                    inserted++;
-                    virusCount--;
-                }
-                else
-                    skipped++;
-            }
-
-            console.log ("Done! inserted", inserted, "and skipped", skipped, "for a total of",
-                         inserted + skipped);
-
-            let count = 0;
+            // Make every segment in the bottle empty.
             for (let i = 0 ; i < BOTTLE_WIDTH * BOTTLE_HEIGHT ; i++)
-            {
-                if (this._contents[i].properties.type == SegmentType.VIRUS)
-                    count++;
-            }
+                this._contents[i].properties.type = SegmentType.EMPTY;
 
-            console.log ("Virus count in bottle is", count);
+            // No more viruses now.
+            this._virusCount = 0;
+        }
+
+        /**
+         * Insert a virus into the bottle. This can only be called while the bottle contains nothing but
+         * viruses and empty space (i.e. when setting up a level for play).
+         *
+         * A random location will be calculated and a virus inserted. The color of the virus is somewhat
+         * determined by the number of viruses that are left to be generated in the bottle, and the maximum
+         * height that the virus is allowed to generate in the bottle is controlled by the game level number
+         * (higher levels allow for higher virus placement).
+         *
+         * @param level the level the virus is for
+         * @param virusRemaining the number of viruses that are left to generate for this level, including
+         * the one that is about to be generated by this call
+         */
+        insertVirus (level : number, virusRemaining : number) : void
+        {
+            // Keep calling the private version of the function until it returns success. This is a super
+            // hack because I'm too lazy at the moment to refactor the generation code always just
+            // generate a virus before it returns.
+            //noinspection StatementWithEmptyBodyJS
+            while (this.attemptInsertVirus (level, virusRemaining) == false)
+                ;
+
+            // Count this as a virus inserted.
+            this._virusCount++;
         }
     }
 }

@@ -15,6 +15,20 @@ module nurdz.game
     const BOTTLE_HEIGHT = 16;
 
     /**
+     * The number of frame ticks between virus insertions when the level is being generated.
+     *
+     * This can be a fractional number, in which case it is possible for one tick to insert more than one
+     * virus; this is important since running at 30fps it takes a minimum of 2.8 seconds to insert all of
+     * the viruses at one insertion per tick.
+     *
+     * This should probably be a sliding scale based on the level or something, as at level 20 there are a
+     * lot of viruses to insert.
+     *
+     * @type {number}
+     */
+    const GENERATE_TICK = 0.5;
+
+    /**
      * The scene in which our game is played. This is responsible for drawing the bottle, the pills, and
      * handling the input and game logic.
      */
@@ -52,6 +66,37 @@ module nurdz.game
         private _bottle : Bottle;
 
         /**
+         * The level the game is currently at. This controls things like how fast the player capsule drops
+         * and also the number of viruses that get inserted into the bottle when the level starts.
+         */
+        private _level : number;
+
+        /**
+         * The number of viruses that the level starts with. This is set when a level starts generating,
+         * and is based on the level. This is here because it's used during the level creation; the number
+         * of viruses remaining to insert is required by the virus insertion algorithm.
+         */
+        private _levelVirusCount : number;
+
+        /**
+         * When this value is true, we are generating the virus content in the bottle.
+         */
+        private _generatingLevel : boolean;
+
+        /**
+         * The number of ticks that have happened so far (one tick = one frame update).
+         *
+         * We use this value to time things.
+         */
+        private _ticks : number;
+
+        /**
+         * The tick count as of the last time a virus was inserted into the bottle. We use this to slow
+         * down the virus insertion
+         */
+        private _genTicks : number;
+
+        /**
          * Construct a new game scene.
          *
          * @param name the name of this scene for debug purposes
@@ -62,6 +107,9 @@ module nurdz.game
         {
             // Invoke the super to set up our instance.
             super (name, stage);
+
+            // No ticks to start.
+            this._ticks = 0;
 
             // Create an array of segments that represent all of the possible segment types. We default
             // the selected segment to be the virus.
@@ -101,6 +149,9 @@ module nurdz.game
             this.addActorArray (this._segments);
             this.addActor (this._pointer);
             this.addActor (this._bottle);
+
+            // Start a new level generating.
+            this.startNewLevel (20);
         }
 
         /**
@@ -113,6 +164,29 @@ module nurdz.game
             // Clear the canvas, then let the super render everything for us.
             this._renderer.clear ('black');
             super.render ();
+        }
+
+        /**
+         * Perform a frame update for our scene.
+         */
+        update () : void
+        {
+            // Count this as a tick.
+            this._ticks++;
+
+            // Let the super update our child entities
+            super.update ();
+
+            // Perform a virus generation step if it's been long enough to perform at least one.
+            if (this._generatingLevel && this._ticks >= this._genTicks + GENERATE_TICK)
+            {
+                // Keep inserting viruses until we have inserted enough for this frame.
+                while (this._ticks >= this._genTicks)
+                {
+                    this.virusGenerationStep ();
+                    this._genTicks += GENERATE_TICK;
+                }
+            }
         }
 
         /**
@@ -251,6 +325,62 @@ module nurdz.game
             }
 
             return false;
+        }
+
+        /**
+         * Given a level number in the game (which starts at 0) return back the number of viruses that
+         * should be inserted into the bottle for that level number. The number of viruses maxes out after
+         * a certain point when the bottle gets too full.
+         *
+         * @param level the level to get the virus count for
+         */
+        private virusesForLevel (level : number) : number
+        {
+            // Constrain the level to our pre defined bounds.
+            if (level < 0)
+                level = 0;
+            if (level > 20)
+                level = 20;
+
+            // There are 4 viruses per level, plus 4.
+            return (level + 1) * 4;
+        }
+
+        /**
+         * Start a new level at the given level number. This will empty out the bottle and then set the
+         * flag that gets us started on virus generation for the new level.
+         *
+         * @param level the level to start.
+         */
+        private startNewLevel (level : number) : void
+        {
+            // Empty the bottle in preparation for the new level.
+            this._bottle.emptyBottle ();
+
+            // Set the level to generate and turn on our flag that says we are generating a new level.
+            this._level = level;
+            this._levelVirusCount = this.virusesForLevel (this._level);
+            this._generatingLevel = true;
+            this._genTicks = this._ticks;
+        }
+
+        /**
+         * This is called on a regular basis when a level is being generated to allow us to insert a new
+         * virus into the bottle at the start of a level.
+         *
+         * This is responsible for turning off the generation flag when it's complete.
+         */
+        private virusGenerationStep () : void
+        {
+            // If the number of viruses in the bottle is the number that we want to generate, we're done.
+            if (this._bottle.virusCount == this._levelVirusCount)
+            {
+                this._generatingLevel = false;
+                return;
+            }
+
+            // Insert a virus into the bottle.
+            this._bottle.insertVirus (this._level, this._levelVirusCount - this._bottle.virusCount);
         }
     }
 }
