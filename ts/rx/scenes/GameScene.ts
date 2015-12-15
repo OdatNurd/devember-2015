@@ -141,11 +141,23 @@ module nurdz.game
         private _level : number;
 
         /**
+         * The position on the stage to render the current level number; this is calculated when the
+         * scene is constructed.
+         */
+        private _levelTextPos : Point;
+
+        /**
          * The number of viruses that the level starts with. This is set when a level starts generating,
          * and is based on the level. This is here because it's used during the level creation; the number
          * of viruses remaining to insert is required by the virus insertion algorithm.
          */
         private _levelVirusCount : number;
+
+        /**
+         * The position on the stage to render the current number of viruses in the bottle; this is
+         * calculated when the scene is constructed.
+         */
+        private _virusTextPos : Point;
 
         /**
          * When this value is true, we are generating the virus content in the bottle.
@@ -164,6 +176,25 @@ module nurdz.game
          * down the virus insertion
          */
         private _genTicks : number;
+
+        /**
+         * Given a string of digits, return back a point where the X value indicates how many pixels wide
+         * and tall the rendered polygon for that text would be.
+         *
+         * @param numberStr the string to calculate the size of
+         * @returns {Point} a point whose x value is the width of the string in pixels and whose y is the
+         * height in pixels.
+         */
+        private numberStringSize (numberStr : string) : Point
+        {
+            // Get the height and width of a digit in our number font in pixels based on the scale factor.
+            let pixelWidth = FONT_WIDTH * FONT_SCALE;
+            let pixelHeight = FONT_HEIGHT * FONT_SCALE;
+            let pixelGap = FONT_SPACING * FONT_SCALE;
+
+            return new Point (numberStr.length * pixelWidth + (numberStr.length - 1) * pixelGap,
+                pixelHeight);
+        }
 
         /**
          * Construct a new game scene.
@@ -213,6 +244,20 @@ module nurdz.game
             // Create the bottle that will hold te game board and its contents.
             this._bottle = new Bottle (stage, this, '#cccccc');
 
+            // Calculate the size of the largest number of viruses that can appear (the number is not as
+            // important as the number of digits).
+            let textSize = this.numberStringSize ("99");
+
+            // The level number text appears to the right of the bottle. We adjust down 1/2 a tile because
+            // that aligns it with the top edge of the bottle, which is 1/2 a tile thick.
+            this._levelTextPos = this._bottle.position.copyTranslatedXY (this._bottle.width, TILE_SIZE / 2);
+
+            // The virus text position appears to the bottom left of the bottle, adjusted up 1/2 a tile
+            // because that aligns it with the bottom edge of the bottle, which is 1/2 a tile thick.
+            this._virusTextPos = this._bottle.position.copyTranslatedXY (-textSize.x,
+                                                                         this._bottle.height - textSize.y -
+                                                                         (TILE_SIZE / 2));
+
             // Now add all of our entities to ourselves. This will cause them to get updated and drawn
             // automagically.
             this.addActorArray (this._segments);
@@ -220,7 +265,7 @@ module nurdz.game
             this.addActor (this._bottle);
 
             // Start a new level generating.
-            this.startNewLevel (00);
+            this.startNewLevel (20);
         }
 
         /**
@@ -235,7 +280,12 @@ module nurdz.game
             super.render ();
 
             // Draw the number of viruses left in the bottle.
-            this.renderNumber (64, 128, 'magenta', this._bottle.virusCount + "");
+            this.renderNumber (this._virusTextPos.x, this._virusTextPos.y, 'white',
+                               this._bottle.virusCount + "");
+
+            // Draw the current level
+            this.renderNumber (this._levelTextPos.x, this._levelTextPos.y,
+                               'white', this._level + "");
         }
 
         /**

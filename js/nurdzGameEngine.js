@@ -4458,14 +4458,39 @@ var nurdz;
                 this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
                 // Create the bottle that will hold te game board and its contents.
                 this._bottle = new game.Bottle(stage, this, '#cccccc');
+                // Calculate the size of the largest number of viruses that can appear (the number is not as
+                // important as the number of digits).
+                var textSize = this.numberStringSize("99");
+                // The level number text appears to the right of the bottle. We adjust down 1/2 a tile because
+                // that aligns it with the top edge of the bottle, which is 1/2 a tile thick.
+                this._levelTextPos = this._bottle.position.copyTranslatedXY(this._bottle.width, game.TILE_SIZE / 2);
+                // The virus text position appears to the bottom left of the bottle, adjusted up 1/2 a tile
+                // because that aligns it with the bottom edge of the bottle, which is 1/2 a tile thick.
+                this._virusTextPos = this._bottle.position.copyTranslatedXY(-textSize.x, this._bottle.height - textSize.y -
+                    (game.TILE_SIZE / 2));
                 // Now add all of our entities to ourselves. This will cause them to get updated and drawn
                 // automagically.
                 this.addActorArray(this._segments);
                 this.addActor(this._pointer);
                 this.addActor(this._bottle);
                 // Start a new level generating.
-                this.startNewLevel(00);
+                this.startNewLevel(20);
             }
+            /**
+             * Given a string of digits, return back a point where the X value indicates how many pixels wide
+             * and tall the rendered polygon for that text would be.
+             *
+             * @param numberStr the string to calculate the size of
+             * @returns {Point} a point whose x value is the width of the string in pixels and whose y is the
+             * height in pixels.
+             */
+            GameScene.prototype.numberStringSize = function (numberStr) {
+                // Get the height and width of a digit in our number font in pixels based on the scale factor.
+                var pixelWidth = FONT_WIDTH * FONT_SCALE;
+                var pixelHeight = FONT_HEIGHT * FONT_SCALE;
+                var pixelGap = FONT_SPACING * FONT_SCALE;
+                return new game.Point(numberStr.length * pixelWidth + (numberStr.length - 1) * pixelGap, pixelHeight);
+            };
             /**
              * Render our scene.
              *
@@ -4476,7 +4501,9 @@ var nurdz;
                 this._renderer.clear('black');
                 _super.prototype.render.call(this);
                 // Draw the number of viruses left in the bottle.
-                this.renderNumber(64, 128, 'magenta', this._bottle.virusCount + "");
+                this.renderNumber(this._virusTextPos.x, this._virusTextPos.y, 'white', this._bottle.virusCount + "");
+                // Draw the current level
+                this.renderNumber(this._levelTextPos.x, this._levelTextPos.y, 'white', this._level + "");
             };
             /**
              * Crudely render a number using our number font.
