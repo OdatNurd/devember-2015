@@ -75,6 +75,11 @@ module nurdz.game
         { return this._properties; }
 
         /**
+         * The scene that owns us; we notify the scene whenever events happen.
+         */
+        private _scene : GameScene;
+
+        /**
          * This holds the contents of the bottle, which is the actual game board. This is an array of
          * BOTTLE_WIDTH * BOTTLE_HEIGHT elements of the Segment entity.
          */
@@ -153,9 +158,10 @@ module nurdz.game
          * The bottle is responsible for all of the game logic that has to do with the board itself.
          *
          * @param stage the stage that will manage this entity/
+         * @param parent the scene that owns us
          * @param color the color to render the bottle with
          */
-        constructor (stage : Stage, color : string)
+        constructor (stage : Stage, parent : GameScene, color : string)
         {
             // Calculate the dimensions of the bottle in pixels. This is inclusive of both the margins and
             // the inner contents area.
@@ -166,6 +172,9 @@ module nurdz.game
             // stage and place our bottom against the bottom of the stage.
             super ("Bottle", stage, (stage.width / 2) - (width / 2), stage.height - height,
                    width, height, 1, <BottleProperties> {colorStr: color});
+
+            // Save our parent scene.
+            this._scene = parent;
 
             // Start our tick count initialized.
             this._ticks = 0;
@@ -189,12 +198,6 @@ module nurdz.game
 
             // No viruses to start.
             this._virusCount = 0;
-
-            // For debugging purposes, turn on the debug flag for the first three rows of segments; while
-            // generating viruses, this area should never have a virus inserted into it or things go all
-            // wonky.
-            for (let i = 0 ; i < BOTTLE_WIDTH * 3 ; i++)
-                this._contents[i].properties.debug = true;
         }
 
         /**
@@ -349,6 +352,11 @@ module nurdz.game
                 this._matching = false;
                 this._dropping = true;
                 this._dropTicks = -1;
+
+                // Now that all of the matches have been removed and dropping is going to start, tell the
+                // parent if the bottle is empty, because then it's time to go on to a new level.
+                if (this._virusCount == 0)
+                    this._scene.bottleEmpty ();
             }
 
             // If we have been told that we should be dropping things AND enough time has passed since the
@@ -993,6 +1001,11 @@ module nurdz.game
 
             // No more viruses now.
             this._virusCount = 0;
+
+            // Now that the bottle is empty, we are no longer matching or dropping anything, because
+            // there's nothing left.
+            this._dropping = false;
+            this._matching = false;
         }
 
         /**

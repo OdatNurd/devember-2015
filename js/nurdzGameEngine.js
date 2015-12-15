@@ -3516,9 +3516,10 @@ var nurdz;
              * The bottle is responsible for all of the game logic that has to do with the board itself.
              *
              * @param stage the stage that will manage this entity/
+             * @param parent the scene that owns us
              * @param color the color to render the bottle with
              */
-            function Bottle(stage, color) {
+            function Bottle(stage, parent, color) {
                 // Calculate the dimensions of the bottle in pixels. This is inclusive of both the margins and
                 // the inner contents area.
                 var width = (BOTTLE_WIDTH + BOTTLE_MARGIN) * game.TILE_SIZE;
@@ -3526,6 +3527,8 @@ var nurdz;
                 // Configure ourselves to be large and in charge. We center ourselves horizontally on the
                 // stage and place our bottom against the bottom of the stage.
                 _super.call(this, "Bottle", stage, (stage.width / 2) - (width / 2), stage.height - height, width, height, 1, { colorStr: color });
+                // Save our parent scene.
+                this._scene = parent;
                 // Start our tick count initialized.
                 this._ticks = 0;
                 this._dropTicks = 0;
@@ -3543,11 +3546,6 @@ var nurdz;
                     this._contents[i] = new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE);
                 // No viruses to start.
                 this._virusCount = 0;
-                // For debugging purposes, turn on the debug flag for the first three rows of segments; while
-                // generating viruses, this area should never have a virus inserted into it or things go all
-                // wonky.
-                for (var i = 0; i < BOTTLE_WIDTH * 3; i++)
-                    this._contents[i].properties.debug = true;
             }
             Object.defineProperty(Bottle.prototype, "properties", {
                 get: function () { return this._properties; },
@@ -3685,6 +3683,10 @@ var nurdz;
                     this._matching = false;
                     this._dropping = true;
                     this._dropTicks = -1;
+                    // Now that all of the matches have been removed and dropping is going to start, tell the
+                    // parent if the bottle is empty, because then it's time to go on to a new level.
+                    if (this._virusCount == 0)
+                        this._scene.bottleEmpty();
                 }
                 // If we have been told that we should be dropping things AND enough time has passed since the
                 // last time we did a drop, then try to do a drop now.
@@ -4219,6 +4221,10 @@ var nurdz;
                     this._contents[i].properties.type = game.SegmentType.EMPTY;
                 // No more viruses now.
                 this._virusCount = 0;
+                // Now that the bottle is empty, we are no longer matching or dropping anything, because
+                // there's nothing left.
+                this._dropping = false;
+                this._matching = false;
             };
             /**
              * Insert a virus into the bottle. This can only be called while the bottle contains nothing but
@@ -4451,14 +4457,14 @@ var nurdz;
                 // Create our pointer pointing to the selected segment in the segment list.
                 this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
                 // Create the bottle that will hold te game board and its contents.
-                this._bottle = new game.Bottle(stage, '#cccccc');
+                this._bottle = new game.Bottle(stage, this, '#cccccc');
                 // Now add all of our entities to ourselves. This will cause them to get updated and drawn
                 // automagically.
                 this.addActorArray(this._segments);
                 this.addActor(this._pointer);
                 this.addActor(this._bottle);
                 // Start a new level generating.
-                this.startNewLevel(20);
+                this.startNewLevel(00);
             }
             /**
              * Render our scene.
@@ -4654,6 +4660,14 @@ var nurdz;
                 this._levelVirusCount = this.virusesForLevel(this._level);
                 this._generatingLevel = true;
                 this._genTicks = this._ticks;
+            };
+            /**
+             * The bottle invokes this whenever a match completes that removes the last of the viruses from
+             * the bottle. This is our signal that it is time to start a new level.
+             */
+            GameScene.prototype.bottleEmpty = function () {
+                this._level++;
+                this.startNewLevel(this._level);
             };
             /**
              * This is called on a regular basis when a level is being generated to allow us to insert a new

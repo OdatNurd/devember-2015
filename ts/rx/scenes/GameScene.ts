@@ -211,7 +211,7 @@ module nurdz.game
                 this._segments[this._segmentIndex].position.y - TILE_SIZE);
 
             // Create the bottle that will hold te game board and its contents.
-            this._bottle = new Bottle (stage, '#cccccc');
+            this._bottle = new Bottle (stage, this, '#cccccc');
 
             // Now add all of our entities to ourselves. This will cause them to get updated and drawn
             // automagically.
@@ -220,7 +220,7 @@ module nurdz.game
             this.addActor (this._bottle);
 
             // Start a new level generating.
-            this.startNewLevel (20);
+            this.startNewLevel (00);
         }
 
         /**
@@ -261,9 +261,7 @@ module nurdz.game
                     this._renderer.fillPolygon (polygon, color);
 
                 this._renderer.restore ();
-
             }
-
         }
 
         /**
@@ -462,6 +460,16 @@ module nurdz.game
             this._levelVirusCount = this.virusesForLevel (this._level);
             this._generatingLevel = true;
             this._genTicks = this._ticks;
+        }
+
+        /**
+         * The bottle invokes this whenever a match completes that removes the last of the viruses from
+         * the bottle. This is our signal that it is time to start a new level.
+         */
+        public bottleEmpty () : void
+        {
+            this._level++;
+            this.startNewLevel (this._level);
         }
 
         /**
