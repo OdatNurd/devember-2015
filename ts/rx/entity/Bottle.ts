@@ -1023,6 +1023,11 @@ module nurdz.game
          */
         insertVirus (level : number, virusRemaining : number) : void
         {
+            // Constrain the level provided to the maximum allowed in the tables; once this point is
+            // reached, no further height or viruses are allowed.
+            if (level > 20)
+                level = 20;
+
             // Keep calling the private version of the function until it returns success. This is a super
             // hack because I'm too lazy at the moment to refactor the generation code always just
             // generate a virus before it returns.
@@ -1032,6 +1037,24 @@ module nurdz.game
 
             // Count this as a virus inserted.
             this._virusCount++;
+        }
+
+        /**
+         * As a debugging aid, this causes the bottle to scan its contents and reset the number of viruses
+         * that it thinks it contains. This is needed to make sure that the count remains correct while
+         * the level is being edited.
+         */
+        debugRecountViruses () : void
+        {
+            this._virusCount = 0;
+            for (let y = 0 ; y < BOTTLE_HEIGHT ; y++)
+            {
+                for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
+                {
+                    if (this.segmentAt(x, y).properties.type == SegmentType.VIRUS)
+                        this._virusCount++;
+                }
+            }
         }
     }
 }

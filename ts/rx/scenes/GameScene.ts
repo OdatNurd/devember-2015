@@ -402,6 +402,9 @@ module nurdz.game
                 segment.type = selected.type;
                 segment.color = selected.color;
                 segment.virusPolygon = selected.virusPolygon;
+
+                // Make the bottle recalculate its virus count.
+                this._bottle.debugRecountViruses ();
                 return true;
             }
 
