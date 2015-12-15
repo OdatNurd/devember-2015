@@ -102,7 +102,7 @@ module nurdz.game
      *
      * @type {Array<string>}
      */
-    const RENDER_COLORS = ['cccc00', '#cc3300', '#0033cc'];
+    const RENDER_COLORS = ['#cccc00', '#cc3300', '#0033cc'];
 
     /**
      * The overall size of segments in pixels when they are rendered. This should not be any bigger than the

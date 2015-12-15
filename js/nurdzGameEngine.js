@@ -3109,7 +3109,7 @@ var nurdz;
          *
          * @type {Array<string>}
          */
-        var RENDER_COLORS = ['cccc00', '#cc3300', '#0033cc'];
+        var RENDER_COLORS = ['#cccc00', '#cc3300', '#0033cc'];
         /**
          * The overall size of segments in pixels when they are rendered. This should not be any bigger than the
          * tile size that is currently set. Ideally this is slightly smaller to provide for a margin around the
@@ -3541,6 +3541,11 @@ var nurdz;
                 this._contents = [];
                 for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++)
                     this._contents[i] = new game.Segment(stage, game.SegmentType.EMPTY, game.SegmentColor.BLUE);
+                // For debugging purposes, turn on the debug flag for the first three rows of segments; while
+                // generating viruses, this area should never have a virus inserted into it or things go all
+                // wonky.
+                for (var i = 0; i < BOTTLE_WIDTH * 3; i++)
+                    this._contents[i].properties.debug = true;
                 this.generateViruses(20);
             }
             Object.defineProperty(Bottle.prototype, "properties", {
@@ -3697,8 +3702,8 @@ var nurdz;
              * @param activator always null
              */
             Bottle.prototype.trigger = function (activator) {
-                // TODO Really this should always just trigger a match; the drop is just for debugging purposes
                 if (activator === void 0) { activator = null; }
+                // TODO Really this should always just trigger a match; the drop is just for debugging purposes
                 // Set the flag that indicates that a drop should happen now
                 if (activator == null) {
                     this._dropping = true;
@@ -4044,107 +4049,205 @@ var nurdz;
                 return null;
             };
             /**
+             * Empty the entire contents of the bottle.
+             *
+             * The bottle starts out empty, but you probably want to empty it before starting a new level.
+             */
+            Bottle.prototype.emptyBottle = function () {
+                for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++)
+                    this._contents[i].properties.type = game.SegmentType.EMPTY;
+            };
+            /**
+             * Generate and insert a virus into the bottle. This replicates the original Dr. Mario virus
+             * algorithm for the NES as defined at:
+             *     https://tetrisconcept.net/wiki/Dr._Mario
+             *
+             * The code in this function currently assumes a fixed bottle size of 8x13 (the actual bottle
+             * contents is 8x16, but there is a headroom of 3 segment positions reserved at the top of the bottle
+             * to ensure that its possible to match the highest virus in the bottle
+             *
+             * @param level the level of the game (controls maximum virus height in the bottle)
+             * @param virusRemaining the number of viruses left to generate, including this one (controls the
+             * color of the virus inserted)
+             * @returns {boolean} true if it inserted a virus, or false if it was unable to insert one
+             */
+            Bottle.prototype.insertVirus = function (level, virusRemaining) {
+                var _this = this;
+                // The maximum row that the virus can be inserted into the bottle. This is a 0 based row index
+                // where row 0 is the bottom of the bottle and the rows proceed upwards.
+                //
+                // This is indexed by the level number we're generating so that as levels get higher, the
+                // level in the bottle rises, which increases the difficulty (along with the increase in drop
+                // speed).
+                //
+                // This is based on a hard coded level range.
+                var maximumVirusRow = [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                    10, 10, 11, 11, 12, 12];
+                // When inserting a virus, the selected virus color is the number of remaining viruses modulo 4.
+                // Since there are only 3 possible colors, for every fourth virus we generate a random integer
+                // and use it to index this table. This provides a little bit of random variation in the levels
+                // we generate.
+                var virusSelect = [
+                    game.SegmentColor.YELLOW, game.SegmentColor.RED, game.SegmentColor.BLUE,
+                    game.SegmentColor.BLUE, game.SegmentColor.RED, game.SegmentColor.YELLOW,
+                    game.SegmentColor.YELLOW, game.SegmentColor.RED, game.SegmentColor.BLUE,
+                    game.SegmentColor.BLUE, game.SegmentColor.RED, game.SegmentColor.YELLOW,
+                    game.SegmentColor.YELLOW, game.SegmentColor.RED, game.SegmentColor.BLUE,
+                    game.SegmentColor.RED
+                ];
+                // Create a point that will be where the new virus is inserted. In use, the coordinates are 1
+                // based and not 0 based, and the Y coordinate indexes from the bottom of the bottle and not
+                // the top (i.e. a row of 1 is the bottom of the bottle).
+                var virusPos = new game.Point(game.Utils.randomIntInRange(0, BOTTLE_WIDTH - 1), game.Utils.randomIntInRange(0, BOTTLE_HEIGHT - 1));
+                // As long as the row is out of range for what the maximum allowed for the level is, generate
+                // a new one.
+                while (virusPos.y > maximumVirusRow[level])
+                    virusPos.y = game.Utils.randomIntInRange(0, BOTTLE_HEIGHT - 1);
+                // Now that we know we have a Y value that is within the possible bottle height restrictions,
+                // modify it so that it represents a real bottle position. The value as it appears now
+                // references the bottom of the bottle, so we need to make it a real row.
+                virusPos.y = BOTTLE_HEIGHT - virusPos.y - 1;
+                // Generate the virus color to insert, which uses the virus count remaining modulo 4, where the
+                // result is the color to use.
+                //
+                // Every 4 viruses this results in a color that is not valid; in this case, we randomly generate
+                // an integer in the range of 0 to 15 and use it to index the table above to select the color.
+                //
+                // This allows the color distribution of inserted viruses to be mostly even with a little bit of
+                // random variation.
+                var virusColor = virusRemaining % 4;
+                if (virusColor == 3)
+                    virusColor = virusSelect[game.Utils.randomIntInRange(0, 15)];
+                /**
+                 * Given an X and a Y in bottle contents space, fetch the segment that is there. If it is a
+                 * virus, its color is inserted into the results array. If the space is empty or does not
+                 * exist (outside the bounds of the bottle), nothing happens.
+                 *
+                 * @param x the X position in the bottle to check
+                 * @param y the Y position in the bottle to check
+                 * @param results the array to insert the color into.
+                 */
+                var getVirusColor = function (x, y, results) {
+                    var segment = _this.segmentAt(x, y);
+                    if (segment != null && segment.properties.type == game.SegmentType.VIRUS)
+                        results.push(segment.properties.color);
+                };
+                /**
+                 * Adjust the new virus position by advancing first to the right, then up.
+                 *
+                 * @returns {boolean} true if everything is OK or false if the position was adjusted right out
+                 * of the bottle.
+                 */
+                function adjustVirusPosition() {
+                    // Shift the column to the right. Once we go off the right hand side of the bottle, we
+                    // need to reset back at the left side and go up one row.
+                    virusPos.x++;
+                    if (virusPos.x == BOTTLE_WIDTH) {
+                        virusPos.x = 0;
+                        virusPos.y--;
+                    }
+                    // Return false when we go off the top of the bottle or true when the position is still
+                    // valid inside the bottle.
+                    return virusPos.y >= 3;
+                }
+                /**
+                 * Given an array of possible segment colors (which might be empty), check to see if the color
+                 * provided is in the array, and return true or false accordingly.
+                 *
+                 * @param array the array to search
+                 * @param color the color to check for
+                 * @returns true if the color is in the array, false otherwise.
+                 */
+                function contains(array, color) {
+                    for (var i = 0; i < array.length; i++) {
+                        if (array[i] == color)
+                            return true;
+                    }
+                    return false;
+                }
+                // As long as the virus position that we have selected is not empty, advance to the next
+                // position.
+                while (this.segmentAt(virusPos.x, virusPos.y).properties.type != game.SegmentType.EMPTY) {
+                    if (adjustVirusPosition() == false)
+                        return false;
+                }
+                // Get the colors of the viruses 2 cells away in all four directions to see what is around us.
+                var existing = [];
+                getVirusColor(virusPos.x - 2, virusPos.y, existing);
+                getVirusColor(virusPos.x + 2, virusPos.y, existing);
+                getVirusColor(virusPos.x, virusPos.y - 2, existing);
+                getVirusColor(virusPos.x, virusPos.y + 2, existing);
+                // If we found one of each virus in the positions around us, then we can't insert anything at
+                // this location because that would put too many of the same color in close proximity.
+                //
+                // The original algorithm from the NES version would bump the position by one and then
+                // continue, which might overwrite a virus. I don't like that idea, so we don't do that.
+                // Instead, we just leave.
+                if (contains(existing, game.SegmentColor.BLUE) &&
+                    contains(existing, game.SegmentColor.RED) &&
+                    contains(existing, game.SegmentColor.YELLOW))
+                    return false;
+                // We know that some virus is possible here, so cycle through them until we eventually find
+                // the one that we're interested in.
+                //
+                // Per the original algorithm, this goes through the colors backwards instead of forwards.
+                while (contains(existing, virusColor)) {
+                    virusColor--;
+                    if (virusColor < 0)
+                        virusColor = game.SegmentColor.BLUE;
+                }
+                // We found a color that's OK, so get the segment and set it up as a virus, then indicate success.
+                var virus = this.segmentAt(virusPos.x, virusPos.y);
+                virus.type = game.SegmentType.VIRUS;
+                virus.color = virusColor;
+                virus.virusPolygon = game.Utils.randomIntInRange(0, 2);
+                return true;
+            };
+            /**
              * Generate viruses to fill the bottle. The level is the level of the game; the higher the level,
              * the higher up in the bottle the viruses end up.
              *
              * @param level
              */
             Bottle.prototype.generateViruses = function (level) {
-                // Constrain the level passed in to be in a valid range.
+                // Make sure that the bottle is empty before we begin.
+                this.emptyBottle();
+                // Constrain the level passed in to be in a valid range. This should really be 19 as far as
+                // the original NES tables are concerned, but for our purposes we say 20 and treat 20 as 19.
+                //
+                // In practice this only influences the number of viruses present.
                 if (level < 0)
                     level = 0;
-                if (level > 19)
-                    level = 19;
-                // This is indexed by the level of virus that we're generating, and it indicates what row in
-                // the bottle (starting from the bottom) the virus is allowed to populate at maximum. THe
-                // higher the level the higher in the bottle viruses are allowed to go.
-                //
-                // This is based on the level range, so if the maximum level above changes, this needs to
-                // change too.
-                var maximumVirusRow = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                    11, 11, 12, 12, 13];
-                // When we need to select a virus, we generate a random value and use it to index this table
-                // to determine what virus to include.
-                var virusSelect = [
-                    game.SegmentColor.YELLOW,
-                    game.SegmentColor.RED,
-                    game.SegmentColor.BLUE,
-                    game.SegmentColor.BLUE,
-                    game.SegmentColor.RED,
-                    game.SegmentColor.YELLOW,
-                    game.SegmentColor.YELLOW,
-                    game.SegmentColor.RED,
-                    game.SegmentColor.BLUE,
-                    game.SegmentColor.BLUE,
-                    game.SegmentColor.RED,
-                    game.SegmentColor.YELLOW,
-                    game.SegmentColor.YELLOW,
-                    game.SegmentColor.RED,
-                    game.SegmentColor.BLUE,
-                    game.SegmentColor.RED
-                ];
-                // Calculate the number of viruses to generate in the bottle. There are 4 per level, plus an
-                // extra 4 viruses.
-                var virusCount = ((level + 1) * 4) + 4;
+                if (level > 20)
+                    level = 20;
+                // Calculate the number of viruses to generate in the bottle. There are 4 per level in the NES
+                // version.
+                var virusCount = (level + 1) * 4;
                 console.log("Level is ", level);
                 console.log("Generating virus count: ", virusCount);
-                // Keep going until the number of viruses to generate us 0.
+                // Loop generating viruses until we have generated all of them. The count of remaining viruses
+                // is used during the generation to determine what color the virus to insert should be, so as
+                // to ensure that there is not an overabundance of viruses of one particular color.
                 //
-                // NOTE: This replicates the original Dr. Mario algorithm for the NES as defined at:
-                //    https://tetrisconcept.net/wiki/Dr._Mario
-                //
-                // Currently this assumes that the bottle size is 8x13 (there needs to be 3 tiles of headroom
-                // on the top or the top viruses cannot be easily matched). This is currently correct, but
-                // once this is working, it should be cleaned up a bit so as to determine the viruses based on
-                // the actual bottle size.
-                //
-                // Note also that the columns and rows are generated one based but used 0 based, because
-                // that's how the original algorithm generates them; Since some of the values used are table
-                // indexes or used in modulo operations, I have left that alone for now.
+                // The insertion mechanism sometimes fails to insert a virus because of the restrictions, so
+                // only count a virus inserted if one was actually inserted.
+                var inserted = 0;
+                var skipped = 0;
                 while (virusCount > 0) {
-                    // 1 (4)
-                    // Generate a random number for what row to insert the virus at
-                    var row = game.Utils.randomIntInRange(1, 15);
-                    // 2
-                    // If the row generated indicates that we are trying to insert a virus higher than we're
-                    // allowed, go back and try again.
-                    if (row > maximumVirusRow[level])
-                        continue;
-                    // 3
-                    // Generate the column to insert the virus into.
-                    var col = game.Utils.randomIntInRange(1, 8);
-                    // 5, 6
-                    // Virus color to insert; This is the number of viruses left modulo 4. When the value is 0
-                    // through 2, it's just the color value (the enum is carefully ordered). When it's 3 we
-                    // need to generate a random number and then use the table above to determine which virus
-                    // to include.
-                    var virusColor = virusCount % 4;
-                    if (virusColor == 3)
-                        virusColor = virusSelect[game.Utils.randomIntInRange(0, 15)];
-                    // 7
-                    // Keep looping trying to find a place to insert the virus where there isn't already one.
-                    // We need to subtract one from the column since it's one based. The row is 1 based but
-                    // represents a bottom up arrangement, so by subtracting it from the bottle height, we end
-                    // up with the actual row in the bottle to check.
-                    while (this.segmentAt(col - 1, BOTTLE_HEIGHT - row).properties.type != game.SegmentType.EMPTY) {
-                        // 7 (all parts)
-                        // Scan left to right and top to bottom trying to find an empty spot. If we end up
-                        // with a row of 17, it becomes the number of viruses left to generate instead.
-                        col++;
-                        if (col == 9) {
-                            col = 1;
-                            row++;
-                        }
-                        if (row == 17)
-                            row = virusCount;
+                    if (this.insertVirus(level, virusCount)) {
+                        inserted++;
+                        virusCount--;
                     }
-                    // We found a place, insert the virus here and then decrement the virus count.
-                    var virus = this.segmentAt(col - 1, BOTTLE_HEIGHT - row);
-                    virus.type = game.SegmentType.VIRUS;
-                    virus.color = virusColor;
-                    virus.virusPolygon = game.Utils.randomIntInRange(0, 2);
-                    virusCount--;
+                    else
+                        skipped++;
                 }
+                console.log("Done! inserted", inserted, "and skipped", skipped, "for a total of", inserted + skipped);
+                var count = 0;
+                for (var i = 0; i < BOTTLE_WIDTH * BOTTLE_HEIGHT; i++) {
+                    if (this._contents[i].properties.type == game.SegmentType.VIRUS)
+                        count++;
+                }
+                console.log("Virus count in bottle is", count);
             };
             return Bottle;
         })(game.Entity);
