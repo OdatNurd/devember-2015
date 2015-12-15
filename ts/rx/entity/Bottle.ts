@@ -545,6 +545,10 @@ module nurdz.game
             if (type == SegmentType.MATCHED)
                 return;
 
+            // If this segment is a virus, then decrement our virus count now because we are removing a virus.
+            if (segment.properties.type == SegmentType.VIRUS)
+                this._virusCount--;
+
             // Convert the segment to matched segment and then get the connected segment. This will return
             // null if the connected segment is out of bounds or if this segment can't have a connection
             // anyway.
