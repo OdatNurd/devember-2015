@@ -25,6 +25,7 @@
         "engine/LevelData.ts",
         "engine/Level.ts",
         "rx/entity/Segment.ts",
+        "rx/entity/Capsule.ts",
         "rx/entity/Bottle.ts",
         "rx/entity/Pointer.ts",
         "rx/scenes/GameScene.ts",

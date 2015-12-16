@@ -50,6 +50,22 @@ module nurdz.game
     const BOTTLE_MARGIN = 2;
 
     /**
+     * The segment offset at which the opening of the bottle appears, visually.
+     *
+     * The opening in the bottle is always exactly 2 segments wide, which is large enough for a single
+     * horizontal capsule to fit), is always aligned to a segment boundary, and is as close to centered as
+     * is possible while remaining aligned.
+     *
+     * This value indicates how many segments to the right of the bottle x,y position the opening is. Note
+     * however that the position takes the margins of the bottle into account, and so in order to
+     * determine the actual content location that aligns with this, you need to subtract half of
+     * BOTTLE_MARGIN.
+     *
+     * @type {number}
+     */
+    const BOTTLE_OPENING_SEGMENT = Math.floor ((BOTTLE_WIDTH + BOTTLE_MARGIN - 2) / 2);
+
+    /**
      * The properties that a bottle can have.
      */
     interface BottleProperties extends EntityProperties
@@ -130,6 +146,16 @@ module nurdz.game
         private _matchTicks : number;
 
         /**
+         * The stage position of where the opening of our bottle is. The game scene uses this as the
+         * location to make new pills appear before they drop into the bottle.
+         *
+         * This should specify the location to draw a horizontal capsule so that it appears inside the
+         * opening of the bottle, such that dropping it down one segment causes it to be inside the cotent
+         * area of the bottle.
+         */
+        private _bottleOpening : Point;
+
+        /**
          * The number of viruses that currently exist in the bottle.
          *
          * The number starts off at 0; inserting a virus increments the number, and emptying the bottle or
@@ -143,6 +169,14 @@ module nurdz.game
          */
         get virusCount () : number
         { return this._virusCount; }
+
+        /**
+         * Get the position to render a capsule at such that it will render itself inside the opening of
+         * the bottle in preparation for dropping down into the bottle
+         * @returns {Point}
+         */
+        get initialSegmentPosition () : Point
+        { return this._bottleOpening; }
 
         /**
          * Construct a new bottle. The bottle is a defined size to render the bottle image itself as well
@@ -179,6 +213,12 @@ module nurdz.game
             // Construct the bottle polygon for later.
             this._bottlePolygon = this.getBottlePolygon ();
 
+            // Create the stage position at which the opening of the bottle is. A capsule drawn at this
+            // position should appear to be wholly inside the bottle mouth such that dropping down one
+            // full segment causes it to be aligned to the bottle grid and inside the contents area.
+            this._bottleOpening = new Point (this._position.x + (BOTTLE_OPENING_SEGMENT * TILE_SIZE),
+                this.position.y);
+
             // Set up the position of the bottle contents to be half the horizontal and vertical margins
             // away from the top left corner.
             this._contentOffset = new Point ((BOTTLE_MARGIN / 2) * TILE_SIZE, (BOTTLE_MARGIN / 2) * TILE_SIZE);
@@ -208,13 +248,8 @@ module nurdz.game
             // The opening in the bottle is always exactly 2 segments wide (large enough for a single pill
             // to enter it), aligned to the segment boundary, and as close to being centered as possible.
             //
-            // Calculate how many segments there are to the left and right of the bottle opening. The
-            // right hand side is easier to calculate because it's a simple subtraction to determine
-            // what's left.
-            //
-            // Note that we use Math.floor here so that if the bottle is an odd number of segments wide,
-            // things still work as expected.
-            var leftEdgeSegments = Math.floor ((BOTTLE_WIDTH + BOTTLE_MARGIN - 2) / 2);
+            // Calculate how many segments there are to the left and right of the bottle opening.
+            var leftEdgeSegments = BOTTLE_OPENING_SEGMENT;
             var rightEdgeSegments = BOTTLE_WIDTH + BOTTLE_MARGIN - 2 - leftEdgeSegments;
 
             // Create an origin point.
@@ -393,7 +428,7 @@ module nurdz.game
         }
 
         /**
-         * Given A location in the bottle contents, return the segment object at that location, or null if
+         * Given a location in the bottle contents, return the segment object at that location, or null if
          * the location is not valid.
          *
          * @param x the X location in the bottle to get the segment for
@@ -420,7 +455,7 @@ module nurdz.game
          * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
          * is not or the position is not inside the bottle
          */
-        private isEmpty (x : number, y : number) : boolean
+        isEmptyAt (x : number, y : number) : boolean
         {
             // Get the segment at the provided location. If we got one, return if it's empty. If the
             // location is invalid, the method returns null, in which case we assume that the space is not
@@ -494,8 +529,8 @@ module nurdz.game
                     //   o The segment under us is not empty, so there is no place to fall
                     //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
                     //     side to drop.
-                    if (segment.canFall () == false || this.isEmpty (x, y + 1) == false ||
-                        segment.properties.type == SegmentType.LEFT && this.isEmpty (x + 1, y + 1) == false)
+                    if (segment.canFall () == false || this.isEmptyAt (x, y + 1) == false ||
+                        segment.properties.type == SegmentType.LEFT && this.isEmptyAt (x + 1, y + 1) == false)
                         continue;
 
                     // Drop ourselves down, and then based on our type, possibly also drop down something
@@ -1041,7 +1076,7 @@ module nurdz.game
             {
                 for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
                 {
-                    if (this.segmentAt(x, y).properties.type == SegmentType.VIRUS)
+                    if (this.segmentAt (x, y).properties.type == SegmentType.VIRUS)
                         this._virusCount++;
                 }
             }

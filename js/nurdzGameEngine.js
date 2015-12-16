@@ -3483,6 +3483,49 @@ var nurdz;
 (function (nurdz) {
     var game;
     (function (game) {
+        var Capsule = (function (_super) {
+            __extends(Capsule, _super);
+            /**
+             * Construct a new capsule.
+             *
+             * @param stage the stage that will be used to render this segment
+             */
+            function Capsule(stage) {
+                // Call the super class. The only important part here is the stage. We don't care about our
+                // position because something else tells us where to render, and our size is always
+                // constrained by the size of tiles.
+                _super.call(this, "Capsule", stage, 1, 1, game.TILE_SIZE * 2, game.TILE_SIZE, 1, {});
+                // Create our two segments.
+                this._segments = [
+                    new game.Segment(stage, game.SegmentType.LEFT, game.SegmentColor.BLUE),
+                    new game.Segment(stage, game.SegmentType.RIGHT, game.SegmentColor.RED)
+                ];
+            }
+            /**
+             * Render our capsule at the provided stage position.
+             *
+             * The position provided is always the capsule "root" position, which is the top left corner of
+             * the capsule when it is horizontal and the middle left side when it is verical, due to how the
+             * capsule location always specifies the left or bottom segment.
+             *
+             * @param x the x location to render ourselves at
+             * @param y the y location to render ourselves at
+             * @param renderer the renderer that renders us
+             */
+            Capsule.prototype.render = function (x, y, renderer) {
+                // Render the two segments.
+                this._segments[0].render(x, y, renderer);
+                this._segments[1].render(x + game.TILE_SIZE, y, renderer);
+            };
+            return Capsule;
+        })(game.Entity);
+        game.Capsule = Capsule;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
+    var game;
+    (function (game) {
         /**
          * The width of the pill bottle contents area, in pills (tiles/segments).
          *
@@ -3527,6 +3570,21 @@ var nurdz;
          */
         var BOTTLE_MARGIN = 2;
         /**
+         * The segment offset at which the opening of the bottle appears, visually.
+         *
+         * The opening in the bottle is always exactly 2 segments wide, which is large enough for a single
+         * horizontal capsule to fit), is always aligned to a segment boundary, and is as close to centered as
+         * is possible while remaining aligned.
+         *
+         * This value indicates how many segments to the right of the bottle x,y position the opening is. Note
+         * however that the position takes the margins of the bottle into account, and so in order to
+         * determine the actual content location that aligns with this, you need to subtract half of
+         * BOTTLE_MARGIN.
+         *
+         * @type {number}
+         */
+        var BOTTLE_OPENING_SEGMENT = Math.floor((BOTTLE_WIDTH + BOTTLE_MARGIN - 2) / 2);
+        /**
          * This entity represents the pill bottle, which is responsible for managing the display, detecting
          * matches, and all other core game logic that relates directly the the contents of the game field.
          */
@@ -3559,6 +3617,10 @@ var nurdz;
                 this._matching = false;
                 // Construct the bottle polygon for later.
                 this._bottlePolygon = this.getBottlePolygon();
+                // Create the stage position at which the opening of the bottle is. A capsule drawn at this
+                // position should appear to be wholly inside the bottle mouth such that dropping down one
+                // full segment causes it to be aligned to the bottle grid and inside the contents area.
+                this._bottleOpening = new game.Point(this._position.x + (BOTTLE_OPENING_SEGMENT * game.TILE_SIZE), this.position.y);
                 // Set up the position of the bottle contents to be half the horizontal and vertical margins
                 // away from the top left corner.
                 this._contentOffset = new game.Point((BOTTLE_MARGIN / 2) * game.TILE_SIZE, (BOTTLE_MARGIN / 2) * game.TILE_SIZE);
@@ -3583,6 +3645,16 @@ var nurdz;
                 enumerable: true,
                 configurable: true
             });
+            Object.defineProperty(Bottle.prototype, "initialSegmentPosition", {
+                /**
+                 * Get the position to render a capsule at such that it will render itself inside the opening of
+                 * the bottle in preparation for dropping down into the bottle
+                 * @returns {Point}
+                 */
+                get: function () { return this._bottleOpening; },
+                enumerable: true,
+                configurable: true
+            });
             /**
              * Given the current values for the bottle size, calculate and return a polygon that will render
              * the outline of the bottle.
@@ -3596,13 +3668,8 @@ var nurdz;
                 // The opening in the bottle is always exactly 2 segments wide (large enough for a single pill
                 // to enter it), aligned to the segment boundary, and as close to being centered as possible.
                 //
-                // Calculate how many segments there are to the left and right of the bottle opening. The
-                // right hand side is easier to calculate because it's a simple subtraction to determine
-                // what's left.
-                //
-                // Note that we use Math.floor here so that if the bottle is an odd number of segments wide,
-                // things still work as expected.
-                var leftEdgeSegments = Math.floor((BOTTLE_WIDTH + BOTTLE_MARGIN - 2) / 2);
+                // Calculate how many segments there are to the left and right of the bottle opening.
+                var leftEdgeSegments = BOTTLE_OPENING_SEGMENT;
                 var rightEdgeSegments = BOTTLE_WIDTH + BOTTLE_MARGIN - 2 - leftEdgeSegments;
                 // Create an origin point.
                 var point = new game.Point(0, 0);
@@ -3746,7 +3813,7 @@ var nurdz;
                     this.checkForMatches();
             };
             /**
-             * Given A location in the bottle contents, return the segment object at that location, or null if
+             * Given a location in the bottle contents, return the segment object at that location, or null if
              * the location is not valid.
              *
              * @param x the X location in the bottle to get the segment for
@@ -3770,7 +3837,7 @@ var nurdz;
              * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
              * is not or the position is not inside the bottle
              */
-            Bottle.prototype.isEmpty = function (x, y) {
+            Bottle.prototype.isEmptyAt = function (x, y) {
                 // Get the segment at the provided location. If we got one, return if it's empty. If the
                 // location is invalid, the method returns null, in which case we assume that the space is not
                 // empty.
@@ -3833,8 +3900,8 @@ var nurdz;
                         //   o The segment under us is not empty, so there is no place to fall
                         //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
                         //     side to drop.
-                        if (segment.canFall() == false || this.isEmpty(x, y + 1) == false ||
-                            segment.properties.type == game.SegmentType.LEFT && this.isEmpty(x + 1, y + 1) == false)
+                        if (segment.canFall() == false || this.isEmptyAt(x, y + 1) == false ||
+                            segment.properties.type == game.SegmentType.LEFT && this.isEmptyAt(x + 1, y + 1) == false)
                             continue;
                         // Drop ourselves down, and then based on our type, possibly also drop down something
                         // else.
@@ -4488,6 +4555,9 @@ var nurdz;
                 this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
                 // Create the bottle that will hold te game board and its contents.
                 this._bottle = new game.Bottle(stage, this, '#cccccc');
+                // Create the capsule that the player controls.
+                this._capsule = new game.Capsule(stage);
+                this._capsule.position.setTo(this._bottle.initialSegmentPosition);
                 // Calculate the size of the largest number of viruses that can appear (the number is not as
                 // important as the number of digits).
                 var textSize = this.numberStringSize("99");
@@ -4503,6 +4573,7 @@ var nurdz;
                 this.addActorArray(this._segments);
                 this.addActor(this._pointer);
                 this.addActor(this._bottle);
+                this.addActor(this._capsule);
                 // Start a new level generating.
                 this.startNewLevel(20);
             }

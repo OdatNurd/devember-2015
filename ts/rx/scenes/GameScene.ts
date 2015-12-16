@@ -135,6 +135,13 @@ module nurdz.game
         private _bottle : Bottle;
 
         /**
+         * The capsule that is being controlled by the player as it drops into the bottle. Once it comes
+         * into contact with the bottle contents, its segments get copied to the bottle contents and we
+         * then jump it back to the top of the bottle to go again.
+         */
+        private _capsule : Capsule;
+
+        /**
          * The level the game is currently at. This controls things like how fast the player capsule drops
          * and also the number of viruses that get inserted into the bottle when the level starts.
          */
@@ -234,6 +241,10 @@ module nurdz.game
             // Create the bottle that will hold te game board and its contents.
             this._bottle = new Bottle (stage, this, '#cccccc');
 
+            // Create the capsule that the player controls.
+            this._capsule = new Capsule (stage);
+            this._capsule.position.setTo (this._bottle.initialSegmentPosition);
+
             // Calculate the size of the largest number of viruses that can appear (the number is not as
             // important as the number of digits).
             let textSize = this.numberStringSize ("99");
@@ -253,6 +264,7 @@ module nurdz.game
             this.addActorArray (this._segments);
             this.addActor (this._pointer);
             this.addActor (this._bottle);
+            this.addActor (this._capsule);
 
             // Start a new level generating.
             this.startNewLevel (20);
