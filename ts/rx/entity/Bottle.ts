@@ -97,13 +97,6 @@ module nurdz.game
         private _bottlePolygon : Polygon;
 
         /**
-         * The number of ticks that have happened so far (one tick = one frame update).
-         *
-         * We use this value to time things.
-         */
-        private _ticks : number;
-
-        /**
          * The value of this is true if and only if the last frame update was a frame where gravity was
          * checked to see if anything should be dropping, AND at least one segment was moved as a result.
          * Otherwise, this is false.
@@ -176,8 +169,7 @@ module nurdz.game
             // Save our parent scene.
             this._scene = parent;
 
-            // Start our tick count initialized.
-            this._ticks = 0;
+            // Start our tick counts initialized.
             this._dropTicks = 0;
 
             // By default, we're not matching and nothing has been dropping.
@@ -326,16 +318,14 @@ module nurdz.game
          *
          * Here we see if it's time for the game state to advance, and if so, we do it.
          *
-         * @param stage the stage that owns us.
+         * @param stage the stage that the actor is on
+         * @param tick the game tick; this is a count of how many times the game loop has executed
          */
-        update (stage : Stage) : void
+        update (stage : Stage, tick : number) : void
         {
-            // Count this frame update as a tick.
-            this._ticks++;
-
             // If we're currently displaying matches in the bottle and we've been waiting long enough, go
             // ahead and clear them out and then remove the flag so more drops can happen.
-            if (this._matching && this._ticks >= this._matchTicks + MATCH_DISPLAY_TICKS)
+            if (this._matching && tick >= this._matchTicks + MATCH_DISPLAY_TICKS)
             {
                 // Scan over the entire bottle contents and replace all matched segments with empty ones.
                 for (let y = 0 ; y < BOTTLE_HEIGHT ; y++)
@@ -361,7 +351,7 @@ module nurdz.game
 
             // If we have been told that we should be dropping things AND enough time has passed since the
             // last time we did a drop, then try to do a drop now.
-            if (this._dropping == true && this._ticks >= this._dropTicks + CONTENT_DROP_TICKS)
+            if (this._dropping == true && tick >= this._dropTicks + CONTENT_DROP_TICKS)
             {
                 // Do a gravity check to see if there is anything to move.
                 let didDrop = this.contentGravityStep ();
@@ -376,7 +366,7 @@ module nurdz.game
                 // did this at, so that we know when to start again. This will either stop our drop or let
                 // us take another step.
                 this._dropping = didDrop;
-                this._dropTicks = this._ticks;
+                this._dropTicks = tick;
             }
 
         }
@@ -780,7 +770,7 @@ module nurdz.game
             {
                 this._dropping = false;
                 this._matching = true;
-                this._matchTicks = this._ticks;
+                this._matchTicks = this._stage.tick;
             }
         }
 

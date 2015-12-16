@@ -7,13 +7,6 @@ module nurdz.game
     export class Pointer extends Entity
     {
         /**
-         * This number increments on every update; when it hits a certain value, our color flips.
-         *
-         * @type {number}
-         */
-        private _count : number = 0;
-
-        /**
          * The index into the color list that indicates what color to render ourselves.
          *
          * @type {number}
@@ -49,14 +42,13 @@ module nurdz.game
         /**
          * Called every frame to update ourselves. This causes our color to change.
          *
-         * @param stage the stage that owns us.
+         * @param stage the stage that the actor is on
+         * @param tick the game tick; this is a count of how many times the game loop has executed
          */
-        update (stage : Stage) : void
+        update (stage : Stage, tick : number) : void
         {
-            this._count++;
-            if (this._count == 7)
+            if (tick % 7 == 0)
             {
-                this._count = 0;
                 this._colorIndex++;
                 if (this._colorIndex == this._colors.length)
                     this._colorIndex = 0;

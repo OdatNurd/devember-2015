@@ -165,13 +165,6 @@ module nurdz.game
         private _generatingLevel : boolean;
 
         /**
-         * The number of ticks that have happened so far (one tick = one frame update).
-         *
-         * We use this value to time things.
-         */
-        private _ticks : number;
-
-        /**
          * The tick count as of the last time a virus was inserted into the bottle. We use this to slow
          * down the virus insertion
          */
@@ -207,9 +200,6 @@ module nurdz.game
         {
             // Invoke the super to set up our instance.
             super (name, stage);
-
-            // No ticks to start.
-            this._ticks = 0;
 
             // Create an array of segments that represent all of the possible segment types. We default
             // the selected segment to be the virus.
@@ -316,20 +306,18 @@ module nurdz.game
 
         /**
          * Perform a frame update for our scene.
+         * @param tick the game tick; this is a count of how many times the game loop has executed
          */
-        update () : void
+        update (tick : number) : void
         {
-            // Count this as a tick.
-            this._ticks++;
-
             // Let the super update our child entities
-            super.update ();
+            super.update (tick);
 
             // Perform a virus generation step if it's been long enough to perform at least one.
-            if (this._generatingLevel && this._ticks >= this._genTicks + GENERATE_TICK)
+            if (this._generatingLevel && tick >= this._genTicks + GENERATE_TICK)
             {
                 // Keep inserting viruses until we have inserted enough for this frame.
-                while (this._ticks >= this._genTicks)
+                while (tick >= this._genTicks)
                 {
                     this.virusGenerationStep ();
                     this._genTicks += GENERATE_TICK;
@@ -512,7 +500,7 @@ module nurdz.game
             this._level = level;
             this._levelVirusCount = this.virusesForLevel (this._level);
             this._generatingLevel = true;
-            this._genTicks = this._ticks;
+            this._genTicks = this._stage.tick;
         }
 
         /**

@@ -3552,8 +3552,7 @@ var nurdz;
                 _super.call(this, "Bottle", stage, (stage.width / 2) - (width / 2), stage.height - height, width, height, 1, { colorStr: color });
                 // Save our parent scene.
                 this._scene = parent;
-                // Start our tick count initialized.
-                this._ticks = 0;
+                // Start our tick counts initialized.
                 this._dropTicks = 0;
                 // By default, we're not matching and nothing has been dropping.
                 this._dropping = false;
@@ -3686,14 +3685,13 @@ var nurdz;
              *
              * Here we see if it's time for the game state to advance, and if so, we do it.
              *
-             * @param stage the stage that owns us.
+             * @param stage the stage that the actor is on
+             * @param tick the game tick; this is a count of how many times the game loop has executed
              */
-            Bottle.prototype.update = function (stage) {
-                // Count this frame update as a tick.
-                this._ticks++;
+            Bottle.prototype.update = function (stage, tick) {
                 // If we're currently displaying matches in the bottle and we've been waiting long enough, go
                 // ahead and clear them out and then remove the flag so more drops can happen.
-                if (this._matching && this._ticks >= this._matchTicks + MATCH_DISPLAY_TICKS) {
+                if (this._matching && tick >= this._matchTicks + MATCH_DISPLAY_TICKS) {
                     // Scan over the entire bottle contents and replace all matched segments with empty ones.
                     for (var y = 0; y < BOTTLE_HEIGHT; y++) {
                         for (var x = 0; x < BOTTLE_WIDTH; x++) {
@@ -3713,7 +3711,7 @@ var nurdz;
                 }
                 // If we have been told that we should be dropping things AND enough time has passed since the
                 // last time we did a drop, then try to do a drop now.
-                if (this._dropping == true && this._ticks >= this._dropTicks + CONTENT_DROP_TICKS) {
+                if (this._dropping == true && tick >= this._dropTicks + CONTENT_DROP_TICKS) {
                     // Do a gravity check to see if there is anything to move.
                     var didDrop = this.contentGravityStep();
                     // If we didn't drop anything, then it's time to check to see if there is a match because all
@@ -3725,7 +3723,7 @@ var nurdz;
                     // did this at, so that we know when to start again. This will either stop our drop or let
                     // us take another step.
                     this._dropping = didDrop;
-                    this._dropTicks = this._ticks;
+                    this._dropTicks = tick;
                 }
             };
             /**
@@ -4057,7 +4055,7 @@ var nurdz;
                 if (foundMatch) {
                     this._dropping = false;
                     this._matching = true;
-                    this._matchTicks = this._ticks;
+                    this._matchTicks = this._stage.tick;
                 }
             };
             /**
@@ -4315,12 +4313,6 @@ var nurdz;
             function Pointer(stage, x, y) {
                 _super.call(this, "Cursor", stage, x, y, game.TILE_SIZE, game.TILE_SIZE, 1, {});
                 /**
-                 * This number increments on every update; when it hits a certain value, our color flips.
-                 *
-                 * @type {number}
-                 */
-                this._count = 0;
-                /**
                  * The index into the color list that indicates what color to render ourselves.
                  *
                  * @type {number}
@@ -4342,12 +4334,11 @@ var nurdz;
             /**
              * Called every frame to update ourselves. This causes our color to change.
              *
-             * @param stage the stage that owns us.
+             * @param stage the stage that the actor is on
+             * @param tick the game tick; this is a count of how many times the game loop has executed
              */
-            Pointer.prototype.update = function (stage) {
-                this._count++;
-                if (this._count == 7) {
-                    this._count = 0;
+            Pointer.prototype.update = function (stage, tick) {
+                if (tick % 7 == 0) {
                     this._colorIndex++;
                     if (this._colorIndex == this._colors.length)
                         this._colorIndex = 0;
@@ -4471,8 +4462,6 @@ var nurdz;
             function GameScene(name, stage) {
                 // Invoke the super to set up our instance.
                 _super.call(this, name, stage);
-                // No ticks to start.
-                this._ticks = 0;
                 // Create an array of segments that represent all of the possible segment types. We default
                 // the selected segment to be the virus.
                 //
@@ -4568,16 +4557,15 @@ var nurdz;
             };
             /**
              * Perform a frame update for our scene.
+             * @param tick the game tick; this is a count of how many times the game loop has executed
              */
-            GameScene.prototype.update = function () {
-                // Count this as a tick.
-                this._ticks++;
+            GameScene.prototype.update = function (tick) {
                 // Let the super update our child entities
-                _super.prototype.update.call(this);
+                _super.prototype.update.call(this, tick);
                 // Perform a virus generation step if it's been long enough to perform at least one.
-                if (this._generatingLevel && this._ticks >= this._genTicks + GENERATE_TICK) {
+                if (this._generatingLevel && tick >= this._genTicks + GENERATE_TICK) {
                     // Keep inserting viruses until we have inserted enough for this frame.
-                    while (this._ticks >= this._genTicks) {
+                    while (tick >= this._genTicks) {
                         this.virusGenerationStep();
                         this._genTicks += GENERATE_TICK;
                     }
@@ -4729,7 +4717,7 @@ var nurdz;
                 this._level = level;
                 this._levelVirusCount = this.virusesForLevel(this._level);
                 this._generatingLevel = true;
-                this._genTicks = this._ticks;
+                this._genTicks = this._stage.tick;
             };
             /**
              * The bottle invokes this whenever a match completes that removes the last of the viruses from
