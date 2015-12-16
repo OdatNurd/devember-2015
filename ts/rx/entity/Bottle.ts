@@ -146,16 +146,6 @@ module nurdz.game
         private _matchTicks : number;
 
         /**
-         * The stage position of where the opening of our bottle is. The game scene uses this as the
-         * location to make new pills appear before they drop into the bottle.
-         *
-         * This should specify the location to draw a horizontal capsule so that it appears inside the
-         * opening of the bottle, such that dropping it down one segment causes it to be inside the cotent
-         * area of the bottle.
-         */
-        private _bottleOpening : Point;
-
-        /**
          * The number of viruses that currently exist in the bottle.
          *
          * The number starts off at 0; inserting a virus increments the number, and emptying the bottle or
@@ -171,12 +161,17 @@ module nurdz.game
         { return this._virusCount; }
 
         /**
-         * Get the position to render a capsule at such that it will render itself inside the opening of
-         * the bottle in preparation for dropping down into the bottle
-         * @returns {Point}
+         * Get the column number in the bottle content area that corresponds to the location of the
+         * opening in the bottle.
+         *
+         * @returns {number}
          */
-        get initialSegmentPosition () : Point
-        { return this._bottleOpening; }
+        get openingXPosition () : number
+        {
+            // NOTE: This does some math on the result because the opening segment provided includes the
+            // margins.
+            return BOTTLE_OPENING_SEGMENT - (BOTTLE_MARGIN / 2);
+        }
 
         /**
          * Construct a new bottle. The bottle is a defined size to render the bottle image itself as well
@@ -212,12 +207,6 @@ module nurdz.game
 
             // Construct the bottle polygon for later.
             this._bottlePolygon = this.getBottlePolygon ();
-
-            // Create the stage position at which the opening of the bottle is. A capsule drawn at this
-            // position should appear to be wholly inside the bottle mouth such that dropping down one
-            // full segment causes it to be aligned to the bottle grid and inside the contents area.
-            this._bottleOpening = new Point (this._position.x + (BOTTLE_OPENING_SEGMENT * TILE_SIZE),
-                this.position.y);
 
             // Set up the position of the bottle contents to be half the horizontal and vertical margins
             // away from the top left corner.
@@ -465,6 +454,27 @@ module nurdz.game
                 return segment.properties.type == SegmentType.EMPTY;
 
             return false;
+        }
+
+        /**
+         * This method takes a point that is in the coordinate system of the bottle contents and converts
+         * it to be a stage position. In the bottle system, the point 0,0 is in the top left corner.
+         *
+         * This modifies the point provided in place.
+         *
+         * This allows points with negative positions and provides indexes outside of the bottle contents
+         * area as a result. In practice this is probably useful only for getting capsules into the neck
+         * of the bottle.
+         *
+         * @param position
+         */
+        translateContentPosToStage (position : Point) : void
+        {
+            // This is just a simple transformation in which we assuming the input is a tile position,
+            // multiple it by the tile size to get it into the right domain, and then offset it by the
+            // bottle position to get it into our entity area and again by the content offset to get it
+            // into the content area.
+            position.scale (TILE_SIZE).translate (this._contentOffset).translate (this._position);
         }
 
         /**

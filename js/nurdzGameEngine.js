@@ -3483,19 +3483,36 @@ var nurdz;
 (function (nurdz) {
     var game;
     (function (game) {
+        /**
+         * This entity represents the user controllable capsule that is used to play the game and to show what
+         * capsule(s) are coming next.
+         *
+         * This is a collection of two segments of a particular color that always arrange themselves so as to
+         * be a pair of LEFT/RIGHT or TOP/BOTTOM segments.
+         *
+         * A capsule can be either horizontal or vertical; a horizontal capsule position is relative to it's
+         * left hand side while a vertical capsule has a position relative to its bottom segment.
+         *
+         * In practice this means that while a horizontal capsule has a position referenced from the usual
+         * origin location for entities, a vertical one actually has a position relative to the midpoint of
+         * its left side.
+         */
         var Capsule = (function (_super) {
             __extends(Capsule, _super);
             /**
              * Construct a new capsule.
              *
              * @param stage the stage that will be used to render this segment
+             * @param bottle the bottle that contains us
              */
-            function Capsule(stage) {
+            function Capsule(stage, bottle) {
                 // Call the super class. The only important part here is the stage. We don't care about our
                 // position because something else tells us where to render, and our size is always
                 // constrained by the size of tiles.
                 _super.call(this, "Capsule", stage, 1, 1, game.TILE_SIZE * 2, game.TILE_SIZE, 1, {});
-                // Create our two segments.
+                // Save the bottle that we were provided.
+                this._bottle = bottle;
+                // Create our two segments. The type and color don't really matter here.
                 this._segments = [
                     new game.Segment(stage, game.SegmentType.LEFT, game.SegmentColor.BLUE),
                     new game.Segment(stage, game.SegmentType.RIGHT, game.SegmentColor.RED)
@@ -3516,6 +3533,37 @@ var nurdz;
                 // Render the two segments.
                 this._segments[0].render(x, y, renderer);
                 this._segments[1].render(x + game.TILE_SIZE, y, renderer);
+            };
+            /**
+             * Set the stage position of this capsule; unlike the general Actor method of the same name, this
+             * DOES NOT modify the map location of the capsule in any way.
+             *
+             * @param x the new X position on the stage
+             * @param y the new Y position on the stage
+             */
+            Capsule.prototype.setStagePositionXY = function (x, y) {
+                // Set the stage position but otherwise do nothing; the super version of this also sets our
+                // map position, which we don't want it to do.
+                this._position.setToXY(x, y);
+            };
+            /**
+             * Set the map (bottle content) position of this capsule, and then have that change be propagated
+             * automatically to the stage position. This uses the bottle we were given at construction time to
+             * do the conversion for us.
+             *
+             * This accepts negative values for both of these values, which will cause the capsule to appear
+             * outside of the content area of the bottle (although still aligned to it).
+             *
+             * @param x the new X position in the bottle content area to set
+             * @param y the new Y position in the bottle content area to set
+             */
+            Capsule.prototype.setMapPositionXY = function (x, y) {
+                // First, save the position as we were given it.
+                this._mapPosition.setToXY(x, y);
+                // Now copy this to the stage position and get the bottle to modify it to be in the correct
+                // stage location/
+                this._position.setToXY(x, y);
+                this._bottle.translateContentPosToStage(this._position);
             };
             return Capsule;
         })(game.Entity);
@@ -3617,10 +3665,6 @@ var nurdz;
                 this._matching = false;
                 // Construct the bottle polygon for later.
                 this._bottlePolygon = this.getBottlePolygon();
-                // Create the stage position at which the opening of the bottle is. A capsule drawn at this
-                // position should appear to be wholly inside the bottle mouth such that dropping down one
-                // full segment causes it to be aligned to the bottle grid and inside the contents area.
-                this._bottleOpening = new game.Point(this._position.x + (BOTTLE_OPENING_SEGMENT * game.TILE_SIZE), this.position.y);
                 // Set up the position of the bottle contents to be half the horizontal and vertical margins
                 // away from the top left corner.
                 this._contentOffset = new game.Point((BOTTLE_MARGIN / 2) * game.TILE_SIZE, (BOTTLE_MARGIN / 2) * game.TILE_SIZE);
@@ -3645,13 +3689,18 @@ var nurdz;
                 enumerable: true,
                 configurable: true
             });
-            Object.defineProperty(Bottle.prototype, "initialSegmentPosition", {
+            Object.defineProperty(Bottle.prototype, "openingXPosition", {
                 /**
-                 * Get the position to render a capsule at such that it will render itself inside the opening of
-                 * the bottle in preparation for dropping down into the bottle
-                 * @returns {Point}
+                 * Get the column number in the bottle content area that corresponds to the location of the
+                 * opening in the bottle.
+                 *
+                 * @returns {number}
                  */
-                get: function () { return this._bottleOpening; },
+                get: function () {
+                    // NOTE: This does some math on the result because the opening segment provided includes the
+                    // margins.
+                    return BOTTLE_OPENING_SEGMENT - (BOTTLE_MARGIN / 2);
+                },
                 enumerable: true,
                 configurable: true
             });
@@ -3845,6 +3894,25 @@ var nurdz;
                 if (segment != null)
                     return segment.properties.type == game.SegmentType.EMPTY;
                 return false;
+            };
+            /**
+             * This method takes a point that is in the coordinate system of the bottle contents and converts
+             * it to be a stage position. In the bottle system, the point 0,0 is in the top left corner.
+             *
+             * This modifies the point provided in place.
+             *
+             * This allows points with negative positions and provides indexes outside of the bottle contents
+             * area as a result. In practice this is probably useful only for getting capsules into the neck
+             * of the bottle.
+             *
+             * @param position
+             */
+            Bottle.prototype.translateContentPosToStage = function (position) {
+                // This is just a simple transformation in which we assuming the input is a tile position,
+                // multiple it by the tile size to get it into the right domain, and then offset it by the
+                // bottle position to get it into our entity area and again by the content offset to get it
+                // into the content area.
+                position.scale(game.TILE_SIZE).translate(this._contentOffset).translate(this._position);
             };
             /**
              * Cause the segment at the provided location to drop down in the bottle contents.
@@ -4555,9 +4623,11 @@ var nurdz;
                 this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
                 // Create the bottle that will hold te game board and its contents.
                 this._bottle = new game.Bottle(stage, this, '#cccccc');
-                // Create the capsule that the player controls.
-                this._capsule = new game.Capsule(stage);
-                this._capsule.position.setTo(this._bottle.initialSegmentPosition);
+                // Create the capsule that the player controls and set its position to be at the column where
+                // the opening of the bottle is, one row up from the top of the content area, so that it
+                // appears to be inside the bottle opening.
+                this._capsule = new game.Capsule(stage, this._bottle);
+                this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
                 // Calculate the size of the largest number of viruses that can appear (the number is not as
                 // important as the number of digits).
                 var textSize = this.numberStringSize("99");

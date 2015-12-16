@@ -241,9 +241,11 @@ module nurdz.game
             // Create the bottle that will hold te game board and its contents.
             this._bottle = new Bottle (stage, this, '#cccccc');
 
-            // Create the capsule that the player controls.
-            this._capsule = new Capsule (stage);
-            this._capsule.position.setTo (this._bottle.initialSegmentPosition);
+            // Create the capsule that the player controls and set its position to be at the column where
+            // the opening of the bottle is, one row up from the top of the content area, so that it
+            // appears to be inside the bottle opening.
+            this._capsule = new Capsule (stage, this._bottle);
+            this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
 
             // Calculate the size of the largest number of viruses that can appear (the number is not as
             // important as the number of digits).
