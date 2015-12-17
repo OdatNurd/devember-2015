@@ -105,6 +105,14 @@ module nurdz.game
     const RENDER_COLORS = ['#cccc00', '#cc3300', '#0033cc'];
 
     /**
+     * When we are asked to render ourselves as translucent, this is the amount of alpha that is used.
+     * Larger values mean less transparent.
+     *
+     * @type {number}
+     */
+    const TRANSLUCENT_ALPHA = 0.35;
+
+    /**
      * The overall size of segments in pixels when they are rendered. This should not be any bigger than the
      * tile size that is currently set. Ideally this is slightly smaller to provide for a margin around the
      * edge of segments when they're in the grid.
@@ -460,11 +468,14 @@ module nurdz.game
          * This is the core rendering routine. Based on our current type and color, we draw ourselves as
          * appropriate at the provided location.
          *
+         * We can optionally render with some translucency, if desired. By default, this is not the case.
+         *
          * @param x the X location to render to
          * @param y the Y location to render to
          * @param renderer the renderer to use to render ourselves
+         * @param translucent true if we should render ourselves with some translucency, false otherwise
          */
-        render (x : number, y : number, renderer : CanvasRenderer) : void
+        render (x : number, y : number, renderer : CanvasRenderer, translucent : boolean = false) : void
         {
             // If we're debugging, invoke the super, which will render a background for us at our dimensions,
             // which we can use for debugging purposes to ensure that we're drawing correctly.
@@ -482,6 +493,8 @@ module nurdz.game
                 // location, then render the virus, restore and return.
                 case SegmentType.VIRUS:
                     renderer.translateAndRotate (x, y, 0);
+                    if (translucent)
+                        renderer.context.globalAlpha = TRANSLUCENT_ALPHA;
                     this.renderVirus (renderer);
                     renderer.restore ();
                     return;
@@ -511,6 +524,12 @@ module nurdz.game
                     renderer.translateAndRotate (x + (TILE_SIZE / 2), y + (TILE_SIZE / 2), 0);
                     break;
             }
+
+            // Set the alpha if we have been asked to render translucently. This will be reset when the
+            // context gets restored, which is why it happens here after the above translate does an
+            // implicit state save.
+            if (translucent)
+                renderer.context.globalAlpha = TRANSLUCENT_ALPHA;
 
             // Now call our capsule rendering method to do the actual drawing, then restore before we return.
             this.renderCapsuleSegment (renderer);

@@ -148,28 +148,38 @@ module nurdz.game
          * Render our capsule at the provided stage position.
          *
          * The position provided is always the capsule "root" position, which is the top left corner of
-         * the capsule when it is horizontal and the middle left side when it is verical, due to how the
+         * the capsule when it is horizontal and the middle left side when it is vertical, due to how the
          * capsule location always specifies the left or bottom segment.
+         *
+         * We can optionally render with some translucency, if desired. Normally this does not happen and
+         * we render as fully solid. Note however that internal logic will cause the top segment of our
+         * capsule to render as translucent if it is outside the confines of the bottle, regardless of the
+         * parameter passed.
+         *
+         * Forced translucency is mainly interesting for showing a projection of where the capsule will be
+         * if it drops in the bottle right now.
          *
          * @param x the x location to render ourselves at
          * @param y the y location to render ourselves at
-         * @param renderer the renderer that renders us
+         * @param renderer the renderer that renders us\
+         * @param translucent true if we should render ourselves with some translucency, false otherwise
          */
-        render (x : number, y : number, renderer : CanvasRenderer) : void
+        render (x : number, y : number, renderer : CanvasRenderer, translucent : boolean = false) : void
         {
             // If we're not visible, leave.
             if (this._properties.visible == false)
                 return;
 
             // First segment always renders at exactly the position specified, regardless of orientation.
-            this._segments[0].render (x, y, renderer);
+            this._segments[0].render (x, y, renderer, translucent);
 
             // The second segment renders either to the right of this position or above it, depending on
-            // orientation.
+            // orientation. When we render vertically and our position is 0, the top half is rendered
+            // translucent to show that it will not be applied.
             if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
-                this._segments[1].render (x + TILE_SIZE, y, renderer);
+                this._segments[1].render (x + TILE_SIZE, y, renderer, translucent);
             else
-                this._segments[1].render (x, y - TILE_SIZE, renderer);
+                this._segments[1].render (x, y - TILE_SIZE, renderer, this._mapPosition.y == 0 || translucent);
         }
 
         /**

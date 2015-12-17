@@ -3134,6 +3134,13 @@ var nurdz;
          */
         var RENDER_COLORS = ['#cccc00', '#cc3300', '#0033cc'];
         /**
+         * When we are asked to render ourselves as translucent, this is the amount of alpha that is used.
+         * Larger values mean less transparent.
+         *
+         * @type {number}
+         */
+        var TRANSLUCENT_ALPHA = 0.35;
+        /**
          * The overall size of segments in pixels when they are rendered. This should not be any bigger than the
          * tile size that is currently set. Ideally this is slightly smaller to provide for a margin around the
          * edge of segments when they're in the grid.
@@ -3384,11 +3391,15 @@ var nurdz;
              * This is the core rendering routine. Based on our current type and color, we draw ourselves as
              * appropriate at the provided location.
              *
+             * We can optionally render with some translucency, if desired. By default, this is not the case.
+             *
              * @param x the X location to render to
              * @param y the Y location to render to
              * @param renderer the renderer to use to render ourselves
+             * @param translucent true if we should render ourselves with some translucency, false otherwise
              */
-            Segment.prototype.render = function (x, y, renderer) {
+            Segment.prototype.render = function (x, y, renderer, translucent) {
+                if (translucent === void 0) { translucent = false; }
                 // If we're debugging, invoke the super, which will render a background for us at our dimensions,
                 // which we can use for debugging purposes to ensure that we're drawing correctly.
                 if (this._properties.debug)
@@ -3402,6 +3413,8 @@ var nurdz;
                     // location, then render the virus, restore and return.
                     case SegmentType.VIRUS:
                         renderer.translateAndRotate(x, y, 0);
+                        if (translucent)
+                            renderer.context.globalAlpha = TRANSLUCENT_ALPHA;
                         this.renderVirus(renderer);
                         renderer.restore();
                         return;
@@ -3427,6 +3440,11 @@ var nurdz;
                         renderer.translateAndRotate(x + (game.TILE_SIZE / 2), y + (game.TILE_SIZE / 2), 0);
                         break;
                 }
+                // Set the alpha if we have been asked to render translucently. This will be reset when the
+                // context gets restored, which is why it happens here after the above translate does an
+                // implicit state save.
+                if (translucent)
+                    renderer.context.globalAlpha = TRANSLUCENT_ALPHA;
                 // Now call our capsule rendering method to do the actual drawing, then restore before we return.
                 this.renderCapsuleSegment(renderer);
                 renderer.restore();
@@ -3573,25 +3591,36 @@ var nurdz;
              * Render our capsule at the provided stage position.
              *
              * The position provided is always the capsule "root" position, which is the top left corner of
-             * the capsule when it is horizontal and the middle left side when it is verical, due to how the
+             * the capsule when it is horizontal and the middle left side when it is vertical, due to how the
              * capsule location always specifies the left or bottom segment.
+             *
+             * We can optionally render with some translucency, if desired. Normally this does not happen and
+             * we render as fully solid. Note however that internal logic will cause the top segment of our
+             * capsule to render as translucent if it is outside the confines of the bottle, regardless of the
+             * parameter passed.
+             *
+             * Forced translucency is mainly interesting for showing a projection of where the capsule will be
+             * if it drops in the bottle right now.
              *
              * @param x the x location to render ourselves at
              * @param y the y location to render ourselves at
-             * @param renderer the renderer that renders us
+             * @param renderer the renderer that renders us\
+             * @param translucent true if we should render ourselves with some translucency, false otherwise
              */
-            Capsule.prototype.render = function (x, y, renderer) {
+            Capsule.prototype.render = function (x, y, renderer, translucent) {
+                if (translucent === void 0) { translucent = false; }
                 // If we're not visible, leave.
                 if (this._properties.visible == false)
                     return;
                 // First segment always renders at exactly the position specified, regardless of orientation.
-                this._segments[0].render(x, y, renderer);
+                this._segments[0].render(x, y, renderer, translucent);
                 // The second segment renders either to the right of this position or above it, depending on
-                // orientation.
+                // orientation. When we render vertically and our position is 0, the top half is rendered
+                // translucent to show that it will not be applied.
                 if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
-                    this._segments[1].render(x + game.TILE_SIZE, y, renderer);
+                    this._segments[1].render(x + game.TILE_SIZE, y, renderer, translucent);
                 else
-                    this._segments[1].render(x, y - game.TILE_SIZE, renderer);
+                    this._segments[1].render(x, y - game.TILE_SIZE, renderer, this._mapPosition.y == 0 || translucent);
             };
             /**
              * Set the stage position of this capsule; unlike the general Actor method of the same name, this
