@@ -3241,8 +3241,6 @@ var nurdz;
                 // If this is a virus, we need to set the polygon too.
                 if (type == SegmentType.VIRUS)
                     this.virusPolygon = game.Utils.randomIntInRange(0, 2);
-                // Lastly, we need to set up the color string based on the color specification we were given.
-                this._properties.colorStr = RENDER_COLORS[this._properties.color];
             }
             Object.defineProperty(Segment.prototype, "properties", {
                 get: function () { return this._properties; },
@@ -3273,12 +3271,10 @@ var nurdz;
                  */
                 get: function () { return this._properties.color; },
                 /**
-                 * Change the segment color of this segment to be the new color. This updates both of the color
-                 * properties so that the segment will actually render in the correct color.
+                 * Change the segment color of this segment to be the new color.
                  */
                 set: function (color) {
                     this._properties.color = color;
-                    this._properties.colorStr = RENDER_COLORS[color];
                 },
                 enumerable: true,
                 configurable: true
@@ -3335,7 +3331,7 @@ var nurdz;
                 if (this._properties.color == SegmentColor.BLUE)
                     vColor = '#cccccc';
                 // Render out all of the polygons now.
-                renderer.fillPolygon(this._properties.poly.body, this._properties.colorStr);
+                renderer.fillPolygon(this._properties.poly.body, RENDER_COLORS[this._properties.color]);
                 renderer.fillPolygon(this._properties.poly.leftEye, vColor);
                 renderer.fillPolygon(this._properties.poly.rightEye, vColor);
                 renderer.fillPolygon(this._properties.poly.mouth, vColor);
@@ -3350,25 +3346,27 @@ var nurdz;
              * @param renderer the renderer to render the capsule segment with
              */
             Segment.prototype.renderCapsuleSegment = function (renderer) {
+                // Alias the color that we're going to use to render
+                var colorStr = RENDER_COLORS[this._properties.color];
                 // How we render depends on our type.
                 switch (this._properties.type) {
                     // A single segment capsule is just a circle centered in the cell.
                     case SegmentType.SINGLE:
-                        renderer.fillCircle(0, 0, SEGMENT_SIZE / 2, this._properties.colorStr);
+                        renderer.fillCircle(0, 0, SEGMENT_SIZE / 2, colorStr);
                         return;
                     // A segment that is a part of a match. This is an intermediate state between when a match
                     // has been detected and when the segment is made empty.
                     case SegmentType.MATCHED:
-                        renderer.fillCircle(0, 0, SEGMENT_SIZE / 3, this._properties.colorStr);
+                        renderer.fillCircle(0, 0, SEGMENT_SIZE / 3, colorStr);
                         renderer.fillCircle(0, 0, SEGMENT_SIZE / 4, '#000000');
-                        renderer.fillCircle(0, 0, SEGMENT_SIZE / 5, this._properties.colorStr);
+                        renderer.fillCircle(0, 0, SEGMENT_SIZE / 5, colorStr);
                         return;
                     // The remainder of the cases are (or should be) one of the four capsule segments that are
                     // meant to be joined together to be a single capsule. This always renders as a right
                     // handed segment because we assume the canvas has been rotated as appropriate.
                     default:
                         // Draw the circular portion. This describes a half circle for a right hand capsule end.
-                        renderer.context.fillStyle = this._properties.colorStr;
+                        renderer.context.fillStyle = colorStr;
                         renderer.context.beginPath();
                         renderer.context.arc(0, 0, SEGMENT_SIZE / 2, Math.PI * 1.5, Math.PI / 2);
                         renderer.context.fill();
@@ -3378,7 +3376,7 @@ var nurdz;
                         // segments should be to allow for a boundary between adjacent pills, but we want the
                         // flat edge of the segments to butt up against the side of their bounding boxes so that
                         // when two halves are together they don't appear to have a seam.
-                        renderer.fillRect(-game.TILE_SIZE / 2, -SEGMENT_SIZE / 2, game.TILE_SIZE / 2, SEGMENT_SIZE, this._properties.colorStr);
+                        renderer.fillRect(-game.TILE_SIZE / 2, -SEGMENT_SIZE / 2, game.TILE_SIZE / 2, SEGMENT_SIZE, colorStr);
                         return;
                 }
             };
@@ -3484,6 +3482,43 @@ var nurdz;
     var game;
     (function (game) {
         /**
+         * This represents the different types of capsules that are possible.
+         *
+         * This represents all possible color combinations in all possible orientations (i.e. Red-Blue is
+         * unique from Blue-Red). There are 9 such unique combinations.
+         *
+         * These combinations are laid out so that the colors on each side go in the standard color order of
+         * YELLOW, RED and BLUE, so that we can do tricky things to extract the colors.
+         */
+        (function (CapsuleType) {
+            CapsuleType[CapsuleType["YELLOW_YELLOW"] = 0] = "YELLOW_YELLOW";
+            CapsuleType[CapsuleType["YELLOW_RED"] = 1] = "YELLOW_RED";
+            CapsuleType[CapsuleType["YELLOW_BLUE"] = 2] = "YELLOW_BLUE";
+            CapsuleType[CapsuleType["RED_YELLOW"] = 3] = "RED_YELLOW";
+            CapsuleType[CapsuleType["RED_RED"] = 4] = "RED_RED";
+            CapsuleType[CapsuleType["RED_BLUE"] = 5] = "RED_BLUE";
+            CapsuleType[CapsuleType["BLUE_YELLOW"] = 6] = "BLUE_YELLOW";
+            CapsuleType[CapsuleType["BLUE_RED"] = 7] = "BLUE_RED";
+            CapsuleType[CapsuleType["BLUE_BLUE"] = 8] = "BLUE_BLUE";
+        })(game.CapsuleType || (game.CapsuleType = {}));
+        var CapsuleType = game.CapsuleType;
+        /**
+         * This represents the different orientations allowed for the capsule.
+         */
+        (function (CapsuleOrientation) {
+            /**
+             * The capsule is laid out horizontally. In this orientation, our position represents the left
+             * side of the capsule.
+             */
+            CapsuleOrientation[CapsuleOrientation["HORIZONTAL"] = 0] = "HORIZONTAL";
+            /**
+             * The capsule is laid out vertically. In this orientation, our position represents the bottom end
+             * of the capsule.
+             */
+            CapsuleOrientation[CapsuleOrientation["VERTICAL"] = 1] = "VERTICAL";
+        })(game.CapsuleOrientation || (game.CapsuleOrientation = {}));
+        var CapsuleOrientation = game.CapsuleOrientation;
+        /**
          * This entity represents the user controllable capsule that is used to play the game and to show what
          * capsule(s) are coming next.
          *
@@ -3504,20 +3539,35 @@ var nurdz;
              *
              * @param stage the stage that will be used to render this segment
              * @param bottle the bottle that contains us
+             * @param type the type of capsule to create; this specifies our color
+             * @param orientation the orientation of the capsule
              */
-            function Capsule(stage, bottle) {
+            function Capsule(stage, bottle, type, orientation) {
+                if (orientation === void 0) { orientation = CapsuleOrientation.HORIZONTAL; }
                 // Call the super class. The only important part here is the stage. We don't care about our
                 // position because something else tells us where to render, and our size is always
                 // constrained by the size of tiles.
-                _super.call(this, "Capsule", stage, 1, 1, game.TILE_SIZE * 2, game.TILE_SIZE, 1, {});
+                //
+                // Here we set the type and orientation parameters directly into our properties.
+                _super.call(this, "Capsule", stage, 1, 1, game.TILE_SIZE * 2, game.TILE_SIZE, 1, {
+                    type: type,
+                    orientation: orientation
+                }, {}, '#333333');
                 // Save the bottle that we were provided.
                 this._bottle = bottle;
-                // Create our two segments. The type and color don't really matter here.
+                // Create our two segments and then call our update function to give them an appropriate color
+                // and layout based on the parameters we were given.
                 this._segments = [
                     new game.Segment(stage, game.SegmentType.LEFT, game.SegmentColor.BLUE),
                     new game.Segment(stage, game.SegmentType.RIGHT, game.SegmentColor.RED)
                 ];
+                this.updateSegments();
             }
+            Object.defineProperty(Capsule.prototype, "properties", {
+                get: function () { return this._properties; },
+                enumerable: true,
+                configurable: true
+            });
             /**
              * Render our capsule at the provided stage position.
              *
@@ -3530,9 +3580,14 @@ var nurdz;
              * @param renderer the renderer that renders us
              */
             Capsule.prototype.render = function (x, y, renderer) {
-                // Render the two segments.
+                // First segment always renders at exactly the position specified, regardless of orientation.
                 this._segments[0].render(x, y, renderer);
-                this._segments[1].render(x + game.TILE_SIZE, y, renderer);
+                // The second segment renders either to the right of this position or above it, depending on
+                // orientation.
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                    this._segments[1].render(x + game.TILE_SIZE, y, renderer);
+                else
+                    this._segments[1].render(x, y - game.TILE_SIZE, renderer);
             };
             /**
              * Set the stage position of this capsule; unlike the general Actor method of the same name, this
@@ -3564,6 +3619,34 @@ var nurdz;
                 // stage location/
                 this._position.setToXY(x, y);
                 this._bottle.translateContentPosToStage(this._position);
+            };
+            /**
+             * This method updates the internal segments that make up the capsule based on the current
+             * settings of the properties.
+             *
+             * This should be invoked whenever the orientation and/or type of the capsule changes, so that it
+             * renders appropriately.
+             */
+            Capsule.prototype.updateSegments = function () {
+                // First, set the segment types as appropriate. When we're horizontal they go left/right,
+                // otherwise they go bottom/top (the first segment is always either the left or bottom,
+                // respectively).
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL) {
+                    this._segments[0].properties.type = game.SegmentType.LEFT;
+                    this._segments[1].properties.type = game.SegmentType.RIGHT;
+                }
+                else {
+                    this._segments[0].properties.type = game.SegmentType.BOTTOM;
+                    this._segments[1].properties.type = game.SegmentType.TOP;
+                }
+                // Now, set the colors of the two segments as appropriate. We have carefully laid out the
+                // capsule type enum so that the colors always go in the same order as the colors in the
+                // segment class (which are laid out that way to make virus insertion easier).
+                //
+                // Due to this layout, a modulo operation tells us the color on the right hand side and an
+                // integer division gives us the color on the left side.
+                this._segments[0].properties.color = Math.floor(this._properties.type / 3);
+                this._segments[1].properties.color = this._properties.type % 3;
             };
             return Capsule;
         })(game.Entity);
@@ -4626,7 +4709,7 @@ var nurdz;
                 // Create the capsule that the player controls and set its position to be at the column where
                 // the opening of the bottle is, one row up from the top of the content area, so that it
                 // appears to be inside the bottle opening.
-                this._capsule = new game.Capsule(stage, this._bottle);
+                this._capsule = new game.Capsule(stage, this._bottle, game.Utils.randomIntInRange(0, 8));
                 this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
                 // Calculate the size of the largest number of viruses that can appear (the number is not as
                 // important as the number of digits).

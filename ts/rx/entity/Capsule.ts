@@ -1,6 +1,68 @@
 module nurdz.game
 {
     /**
+     * This represents the different types of capsules that are possible.
+     *
+     * This represents all possible color combinations in all possible orientations (i.e. Red-Blue is
+     * unique from Blue-Red). There are 9 such unique combinations.
+     *
+     * These combinations are laid out so that the colors on each side go in the standard color order of
+     * YELLOW, RED and BLUE, so that we can do tricky things to extract the colors.
+     */
+    export enum CapsuleType
+    {
+        YELLOW_YELLOW,
+        YELLOW_RED,
+        YELLOW_BLUE,
+
+        RED_YELLOW,
+        RED_RED,
+        RED_BLUE,
+
+        BLUE_YELLOW,
+        BLUE_RED,
+        BLUE_BLUE,
+    }
+
+    /**
+     * This represents the different orientations allowed for the capsule.
+     */
+    export enum CapsuleOrientation
+    {
+        /**
+         * The capsule is laid out horizontally. In this orientation, our position represents the left
+         * side of the capsule.
+         */
+        HORIZONTAL,
+
+        /**
+         * The capsule is laid out vertically. In this orientation, our position represents the bottom end
+         * of the capsule.
+         */
+        VERTICAL,
+    }
+
+    /**
+     * The properties that a capsule can have.
+     */
+    interface CapsuleProperties extends EntityProperties
+    {
+        // @formatter:off
+        /**
+         * The capsule type. This is used to determine the colors of the segments, and will get updated
+         * when our orientation flips 180 degrees (e.g. RED_BLUE becomes BLUE_RED when flipped twice).
+         */
+        type? : CapsuleType;
+        // @formatter:on
+
+        /**
+         * The orientation of the capsule, which controls how we render ourselves on the screen, as well
+         * as controlling how the capsule interacts with the rest of the bottle contents.
+         */
+        orientation? : CapsuleOrientation;
+    }
+
+    /**
      * This entity represents the user controllable capsule that is used to play the game and to show what
      * capsule(s) are coming next.
      *
@@ -17,6 +79,14 @@ module nurdz.game
     export class Capsule extends Entity
     {
         /**
+         * Redeclare our capsule properties so that it is of the correct type. This is allowed because the
+         * member is protected.
+         */
+        protected _properties : CapsuleProperties;
+        get properties () : CapsuleProperties
+        { return this._properties; }
+
+        /**
          * The two segments that make up our capsule. This is always an array of two segments.
          *
          * We maintain the array such that for a horizontal capsule, the first element is the left segment
@@ -25,6 +95,11 @@ module nurdz.game
          */
         private _segments : Array<Segment>;
 
+        /**
+         * The bottle that owns us; this is responsible for converting our bottle content position into a
+         * stage position, since it knows where it is on the stage and also where inside its coordinate
+         * space the bottle contents are.
+         */
         private _bottle : Bottle;
 
         /**
@@ -32,22 +107,32 @@ module nurdz.game
          *
          * @param stage the stage that will be used to render this segment
          * @param bottle the bottle that contains us
+         * @param type the type of capsule to create; this specifies our color
+         * @param orientation the orientation of the capsule
          */
-        constructor (stage : Stage, bottle : Bottle)
+        constructor (stage : Stage, bottle : Bottle, type : CapsuleType,
+                     orientation : CapsuleOrientation = CapsuleOrientation.HORIZONTAL)
         {
             // Call the super class. The only important part here is the stage. We don't care about our
             // position because something else tells us where to render, and our size is always
             // constrained by the size of tiles.
-            super ("Capsule", stage, 1, 1, TILE_SIZE * 2, TILE_SIZE, 1, {});
+            //
+            // Here we set the type and orientation parameters directly into our properties.
+            super ("Capsule", stage, 1, 1, TILE_SIZE * 2, TILE_SIZE, 1, <CapsuleProperties> {
+                type:        type,
+                orientation: orientation
+            }, {}, '#333333');
 
             // Save the bottle that we were provided.
             this._bottle = bottle;
 
-            // Create our two segments. The type and color don't really matter here.
+            // Create our two segments and then call our update function to give them an appropriate color
+            // and layout based on the parameters we were given.
             this._segments = [
-                new Segment(stage, SegmentType.LEFT, SegmentColor.BLUE),
-                new Segment(stage, SegmentType.RIGHT, SegmentColor.RED)
+                new Segment (stage, SegmentType.LEFT, SegmentColor.BLUE),
+                new Segment (stage, SegmentType.RIGHT, SegmentColor.RED)
             ];
+            this.updateSegments ();
         }
 
         /**
@@ -63,9 +148,15 @@ module nurdz.game
          */
         render (x : number, y : number, renderer : CanvasRenderer) : void
         {
-            // Render the two segments.
+            // First segment always renders at exactly the position specified, regardless of orientation.
             this._segments[0].render (x, y, renderer);
-            this._segments[1].render (x + TILE_SIZE, y, renderer);
+
+            // The second segment renders either to the right of this position or above it, depending on
+            // orientation.
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                this._segments[1].render (x + TILE_SIZE, y, renderer);
+            else
+                this._segments[1].render (x, y - TILE_SIZE, renderer);
         }
 
         /**
@@ -102,6 +193,39 @@ module nurdz.game
             // stage location/
             this._position.setToXY (x, y);
             this._bottle.translateContentPosToStage (this._position);
+        }
+
+        /**
+         * This method updates the internal segments that make up the capsule based on the current
+         * settings of the properties.
+         *
+         * This should be invoked whenever the orientation and/or type of the capsule changes, so that it
+         * renders appropriately.
+         */
+        updateSegments () : void
+        {
+            // First, set the segment types as appropriate. When we're horizontal they go left/right,
+            // otherwise they go bottom/top (the first segment is always either the left or bottom,
+            // respectively).
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+            {
+                this._segments[0].properties.type = SegmentType.LEFT;
+                this._segments[1].properties.type = SegmentType.RIGHT;
+            }
+            else
+            {
+                this._segments[0].properties.type = SegmentType.BOTTOM;
+                this._segments[1].properties.type = SegmentType.TOP;
+            }
+
+            // Now, set the colors of the two segments as appropriate. We have carefully laid out the
+            // capsule type enum so that the colors always go in the same order as the colors in the
+            // segment class (which are laid out that way to make virus insertion easier).
+            //
+            // Due to this layout, a modulo operation tells us the color on the right hand side and an
+            // integer division gives us the color on the left side.
+            this._segments[0].properties.color = Math.floor (this._properties.type / 3);
+            this._segments[1].properties.color = this._properties.type % 3;
         }
     }
 }
