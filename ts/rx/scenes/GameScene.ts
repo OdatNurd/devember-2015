@@ -98,6 +98,31 @@ module nurdz.game
     };
 
     /**
+     * This enum is used to reference the list of currently pressed keys during frame update, to see what
+     * the player is doing.
+     */
+    enum InputKey
+    {
+        /**
+         * Capsule movement keys.
+         */
+        LEFT,
+        RIGHT,
+        DOWN,
+
+        /**
+         * Capsule rotation keys.
+         */
+        ROTATE_LEFT,
+        ROTATE_RIGHT,
+
+        /**
+         * Placeholder to tell us how big this array is.
+         */
+        KEY_COUNT
+    }
+
+    /**
      * The scene in which our game is played. This is responsible for drawing the bottle, the pills, and
      * handling the input and game logic.
      */
@@ -172,10 +197,30 @@ module nurdz.game
         private _generatingLevel : boolean;
 
         /**
+         * When this value is true, the update loop in the scene is allowed to use keyboard input to
+         * modify the location of the current capsule (if possible).
+         *
+         * This is false when the capsule should not be controllable, such as when the level has not
+         * started yet, is over, or we're waiting for a move to resolve before we allow for more control.
+         */
+        private _controllingCapsule : boolean;
+
+        /**
          * The tick count as of the last time a virus was inserted into the bottle. We use this to slow
          * down the virus insertion
          */
         private _genTicks : number;
+
+        /**
+         * This tracks the input state of the keys that control the actual game play (i.e. this excludes
+         * things like the screenshot and other debug keys).
+         *
+         * In use, the InputKey enum is used to index this array, with the value being false if that
+         * button is not currently held down or true if it is.
+         *
+         * @type {Array<boolean>}
+         */
+        private _keys : Array<boolean>;
 
         /**
          * Given a string of digits, return back a point where the X value indicates how many pixels wide
@@ -207,6 +252,10 @@ module nurdz.game
         {
             // Invoke the super to set up our instance.
             super (name, stage);
+
+            // We are neither generating a level nor allowing capsule control right now
+            this._generatingLevel = false;
+            this._controllingCapsule = false;
 
             // Create an array of segments that represent all of the possible segment types. We default
             // the selected segment to be the virus.
@@ -244,7 +293,7 @@ module nurdz.game
             // Create the capsule that the player controls and set its position to be at the column where
             // the opening of the bottle is, one row up from the top of the content area, so that it
             // appears to be inside the bottle opening.
-            this._capsule = new Capsule (stage, this._bottle, Utils.randomIntInRange(0, 8));
+            this._capsule = new Capsule (stage, this._bottle, Utils.randomIntInRange (0, 8));
             this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
 
             // Calculate the size of the largest number of viruses that can appear (the number is not as
@@ -261,6 +310,11 @@ module nurdz.game
                                                                          this._bottle.height - textSize.y -
                                                                          (TILE_SIZE / 2));
 
+            // Set up the key state. We assume that all keys are not pressed at startup.
+            this._keys = [];
+            for (let i = 0 ; i < InputKey.KEY_COUNT ; i++)
+                this._keys[i] = false;
+
             // Now add all of our entities to ourselves. This will cause them to get updated and drawn
             // automagically.
             this.addActorArray (this._segments);
@@ -269,7 +323,7 @@ module nurdz.game
             this.addActor (this._capsule);
 
             // Start a new level generating.
-            this.startNewLevel (20);
+            this.startNewLevel (5);
         }
 
         /**
@@ -337,6 +391,49 @@ module nurdz.game
                     this._genTicks += GENERATE_TICK;
                 }
             }
+
+            // If we're allowed, see what the user wants to do with the capsule. We want to constrain
+            // movements to not happen too often.
+            if (this._controllingCapsule && tick % 3 == 0)
+                this.controlCapsule ();
+        }
+
+        /**
+         * Check to see if the capsule is being moved by the player. If it is, and the move is allowed, go
+         * ahead and do it.
+         */
+        private controlCapsule () : void
+        {
+            if (this._keys[InputKey.DOWN])
+            {
+                // Try to drop the capsule. If this doesn't work, we can't move down any more from where
+                // we are.
+                if (this._capsule.drop () == false)
+                {
+                    // First, apply the capsule to the bottle contents to put our segments actually into play.
+                    this._capsule.apply ();
+
+                    // Now make ourselves invisible and reset back to the top of the bottle; we also
+                    // select a new type.
+                    this._capsule.properties.visible = false;
+                    this._capsule.properties.type = Utils.randomIntInRange (0, 8);
+                    this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
+
+                    // The user can no longer control the capsule.
+                    this._controllingCapsule = false;
+
+                    // Now trigger the bottle to see if this did anything.
+                    this._bottle.trigger ();
+                }
+            }
+            else if (this._keys[InputKey.LEFT] && this._capsule.canSlide (true))
+                this._capsule.slide (true);
+            else if (this._keys[InputKey.RIGHT] && this._capsule.canSlide (false))
+                this._capsule.slide (false);
+            else if (this._keys[InputKey.ROTATE_LEFT] && this._capsule.canRotate (true))
+                this._capsule.rotate (true);
+            else if (this._keys[InputKey.ROTATE_RIGHT] && this._capsule.canRotate (false))
+                this._capsule.rotate (false);
         }
 
         /**
@@ -419,14 +516,70 @@ module nurdz.game
         }
 
         /**
+         * Handle a key press or release event by marking the key array boolean as appropriate given the
+         * event.
+         *
+         * @param keyCode the key code of the key that was pressed or released
+         * @param pressed true if this was a key press event or false otherwise
+         * @returns {boolean} true if keyCode was an input key that we cared about or false otherwise
+         */
+        handleGameKey (keyCode : number, pressed : boolean) : boolean
+        {
+            // Store the state of the given key code and return true if this is one we care about.
+            switch (keyCode)
+            {
+                // These are the keys that control the actual game play.
+                case KeyCodes.KEY_LEFT:
+                    this._keys[InputKey.LEFT] = pressed;
+                    return true;
+
+                case KeyCodes.KEY_RIGHT:
+                    this._keys[InputKey.RIGHT] = pressed;
+                    return true;
+
+                case KeyCodes.KEY_DOWN:
+                    this._keys[InputKey.DOWN] = pressed;
+                    return true;
+
+                case KeyCodes.KEY_Z:
+                    this._keys[InputKey.ROTATE_LEFT] = pressed;
+                    return true;
+
+                case KeyCodes.KEY_X:
+                    this._keys[InputKey.ROTATE_RIGHT] = pressed;
+                    return true;
+            }
+
+            // We care not.
+            return false;
+        }
+
+        /**
+         * This triggers when a keyboard key is released.
+         *
+         * @param eventObj the event that represents the key released
+         * @returns {boolean} true if the key was handled, false otherwise
+         */
+        inputKeyUp (eventObj : KeyboardEvent) : boolean
+        {
+            // We only need to handle game keys here.
+            return this.handleGameKey (eventObj.keyCode, false);
+        }
+
+        /**
          * This triggers when a keyboard key is pressed.
          *
          * @param eventObj the event that represents the key pressed
-         *
          * @returns {boolean} true if the key was handled, false otherwise.
          */
         inputKeyDown (eventObj : KeyboardEvent) : boolean
         {
+            // If this is a key that is used to control the game, then this will handle it and return
+            // true, in which case we're done./
+            if (this.handleGameKey (eventObj.keyCode, true))
+                return true;
+
+            // Check other keys
             switch (eventObj.keyCode)
             {
                 // F5 takes a screenshot.
@@ -443,38 +596,6 @@ module nurdz.game
                         this._segments[i].color = color;
                     return true;
 
-                // The V key cycles the virus poly for the segment with the virus.
-                case KeyCodes.KEY_V:
-                    let poly = this._segments[SegmentType.VIRUS].virusPolygon + 1;
-                    if (poly == this._segments[SegmentType.VIRUS].virusPolygonCount)
-                        poly = 0;
-                    this._segments[SegmentType.VIRUS].virusPolygon = poly;
-                    return true;
-
-                // The Spacebar triggers a drop operation, which is signified by triggering with a null
-                // entity
-                case KeyCodes.KEY_SPACEBAR:
-                    this._bottle.trigger (null);
-                    return true;
-
-                // The M key triggers a match operation, which is signified by triggering with a segment
-                // entity.
-                case KeyCodes.KEY_M:
-                    this._bottle.trigger (this._segments[0]);
-                    return true;
-
-                // The number keys from 1 to 7 select a segment. This changes the index of the selected
-                // item and also changes where the arrow is pointing.
-                case KeyCodes.KEY_1:
-                case KeyCodes.KEY_2:
-                case KeyCodes.KEY_3:
-                case KeyCodes.KEY_4:
-                case KeyCodes.KEY_5:
-                case KeyCodes.KEY_6:
-                case KeyCodes.KEY_7:
-                    this._segmentIndex = eventObj.keyCode - KeyCodes.KEY_1;
-                    this._pointer.position.x = this._segments[this._segmentIndex].position.x;
-                    return true;
             }
 
             return false;
@@ -510,12 +631,14 @@ module nurdz.game
             // Empty the bottle in preparation for the new level and hide the user controlled capsule.
             this._bottle.emptyBottle ();
             this._capsule.properties.visible = false;
+            this._controllingCapsule = false;
 
             // Set the level to generate and turn on our flag that says we are generating a new level.
             this._level = level;
             this._levelVirusCount = this.virusesForLevel (this._level);
             this._generatingLevel = true;
             this._genTicks = this._stage.tick;
+
         }
 
         /**
@@ -541,6 +664,7 @@ module nurdz.game
             {
                 // Turn off the flag and then show the user capsule, we're ready to play.
                 this._generatingLevel = false;
+                this._controllingCapsule = true;
                 this._capsule.properties.visible = true;
                 return;
             }

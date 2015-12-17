@@ -3699,6 +3699,20 @@ var nurdz;
                 return this._bottle.isEmptyAtXY(this._mapPosition.x, this._mapPosition.y + 1) == true;
             };
             /**
+             * Drop the capsule down in the bottle, if it is allowed to do so.
+             *
+             * @returns {boolean} true if the capsule actually dropped, or false otherwise
+             */
+            Capsule.prototype.drop = function () {
+                // If we can drop, set our new map position. This will cause the stage position to be
+                // recalculated so that we actually visually change our location.
+                if (this.canDrop()) {
+                    this.setMapPositionXY(this._mapPosition.x, this._mapPosition.y + 1);
+                    return true;
+                }
+                return false;
+            };
+            /**
              * Check to see if this capsule can slide to the left (true) or right (false) in the bottle based
              * on its current position or not.
              *
@@ -3709,18 +3723,119 @@ var nurdz;
              * @returns {boolean} true if the capsule can slide in this direction, or false otherwise.
              */
             Capsule.prototype.canSlide = function (left) {
-                // If we are vertical, then start by checking to see if our upper segment can slide in the
-                // appropriate direction. This only needs to happen when our current Y position is not 0. We
-                // are allowed to be vertical such that our top segment lies outside of the bottle, and in
-                // this case there is nothing to stop the top part from moving but if we ask the bottle, it
-                // will return NO because the position is outside the bounds of the content area.
-                if (this._properties.orientation == CapsuleOrientation.VERTICAL &&
-                    this._mapPosition.y != 0 &&
-                    this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 1), this.mapPosition.y - 1) == false)
+                // If we're a horizontal capsule, we can slide left if the position immediately to our left is
+                // clear, and we can slide right if the position two to the right of us is empty.
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                    return this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 2), this._mapPosition.y) == true;
+                // We are vertical, so we need to make sure that our upper and lower segments are both not
+                // obstructed.
+                //
+                // We are allowed to be vertical with our position at the top of the bottle, which puts our
+                // upper segment outside the bottle content area. In this case we only need to check the
+                // bottom; if we try to do the check, the bottle will return false because the row is outside
+                // the content area of the bottle.
+                return (this._mapPosition.y == 0 ||
+                    this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 1), this._mapPosition.y - 1) == true) &&
+                    this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 1), this._mapPosition.y) == true;
+            };
+            /**
+             * Slide the capsule in the bottle, if it is allowed to do so.
+             *
+             * @param left true to slide left or false for a right slide
+             * @returns {boolean} true if the capsule actually slid, or false otherwise
+             */
+            Capsule.prototype.slide = function (left) {
+                // If we can drop, set our new map position. This will cause the stage position to be
+                // recalculated so that we actually visually change our location.
+                if (this.canSlide(left)) {
+                    if (left)
+                        this.setMapPositionXY(this._mapPosition.x - 1, this._mapPosition.y);
+                    else
+                        this.setMapPositionXY(this._mapPosition.x + 1, this._mapPosition.y);
+                }
+                return false;
+            };
+            /**
+             * Check to see if the capsule can rotate in the bottle or not. The parameter controls what
+             * direction the rotation goes.
+             *
+             * @param left true to check for a left rotation or false to check for a right rotation
+             * @returns {boolean} true if the rotation can happen or false if it cannot
+             */
+            Capsule.prototype.canRotate = function (left) {
+                // When we are a horizontal capsule, the check for rotation is easy.
+                //
+                // Regardless of the direction of the rotation, we always shift the right hand side to be
+                // directly above our position; there is no lateral movement during a rotation to vertical.
+                //
+                // Rotation is always allowed when the capsule position is the top of the bottle, so we need
+                // to always return true in that case because the bottle will return false for the isEmpty
+                // check due to it being outside the bounds of the bottle.
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                    return this._mapPosition.y == 0 ||
+                        this._bottle.isEmptyAtXY(this._mapPosition.x, this._mapPosition.y - 1);
+                // This must be a vertical capsule. Here the rotation direction doesn't really matter, as
+                // there are only three possible outcomes:
+                //  1) The position immediately to our right is clear, we will rotate there
+                //  2) the position to our right is blocked but the position to our left is open, we will
+                //     rotate and "wall kick" one position to the left
+                //  3) We can't rotate
+                //
+                // As such, here we return true if it is clear either to our left or to our right.
+                return this._bottle.isEmptyAtXY(this._mapPosition.x + 1, this._mapPosition.y) ||
+                    this._bottle.isEmptyAtXY(this._mapPosition.x - 1, this._mapPosition.y);
+            };
+            /**
+             * Rotate the capsule in the direction provided, if it is allowed to do so.
+             *
+             * Rotating takes the capsule from a horizontal to a vertical orientation, but can also slightly
+             * bump its location in the bottle if the circumstances are right. For example, if the capsule is
+             * against the side of the bottle in a vertical orientation and rotates towards the bottle edge,
+             * it will get kicked away from the wall to rotate (if there is room)
+             *
+             * @param left true to rotate to the left, or false to rotate to the right
+             * @returns {boolean} true if the rotation actually happened or not
+             */
+            Capsule.prototype.rotate = function (left) {
+                // If we can't rotate in the direction asked for, return false right now.
+                if (this.canRotate(left) == false)
                     return false;
-                // We are horizontal, so if we're moving left we need to check one segment to our left, or two
-                // segments to the right if we're moving right.
-                return this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 2), this._mapPosition.y) == true;
+                // What orientation are we in? This determines what we do.
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL) {
+                    // Change our orientation to be vertical.
+                    this._properties.orientation = CapsuleOrientation.VERTICAL;
+                    // A rotate to the left (counter-clockwise) doesn't require any extra work; our right side
+                    // goes above us and we're good to go.
+                    //
+                    // Rotating to the right requires a bit more work. Here what is currently the left becomes
+                    // the top. This requires us to change our type to the reflection of what it currently is
+                    // (blue-red to red-blue, for example).
+                    //
+                    // Since there are three colors, we can do what we would normally do to extract the left
+                    // and right colors and then multiply the right color by 3 to get the left color, adding
+                    // it to what the current right color is.
+                    if (left == false) {
+                        this._properties.type = ((this._properties.type % 3) * 3) +
+                            Math.floor(this._properties.type / 3);
+                    }
+                }
+                else {
+                    // Change our orientation to be horizontal.
+                    this._properties.orientation = CapsuleOrientation.HORIZONTAL;
+                    // We are going from a vertical to a horizontal orientation. If the position to our right
+                    // is not empty, we are getting wall kicked to the left, so update our position accordingly.
+                    if (this._bottle.isEmptyAtXY(this._mapPosition.x + 1, this._mapPosition.y) == false)
+                        this.setMapPositionXY(this._mapPosition.x - 1, this._mapPosition.y);
+                    // A rotate to the right for a horizontal keeps everything the way it currently is color
+                    // wise (the opposite of above), but a rotation to the left swaps our colors around.
+                    if (left) {
+                        this._properties.type = ((this._properties.type % 3) * 3) +
+                            Math.floor(this._properties.type / 3);
+                    }
+                }
+                // Update our segments so that they match our new rotation and color scheme, then return success.
+                this.updateSegments();
+                return true;
             };
             /**
              * Copy the defining properties of the source segment to the destination segment provided, so that
@@ -4056,18 +4171,11 @@ var nurdz;
              * This is meant to be invoked every time the capsule that the player is moving around in the bottle
              * comes to rest, to see if any matches need to happen.
              *
-             * @param activator always null
+             * @param activator ignored
              */
             Bottle.prototype.trigger = function (activator) {
                 if (activator === void 0) { activator = null; }
-                // TODO Really this should always just trigger a match; the drop is just for debugging purposes
-                // Set the flag that indicates that a drop should happen now
-                if (activator == null) {
-                    this._dropping = true;
-                    this._dropTicks = -1;
-                }
-                else
-                    this.checkForMatches();
+                this.checkForMatches();
             };
             /**
              * Given a location in the bottle contents, return the segment object at that location, or null if
@@ -4205,7 +4313,8 @@ var nurdz;
                         //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
                         //     side to drop.
                         if (segment.canFall() == false || this.isEmptyAtXY(x, y + 1) == false ||
-                            segment.properties.type == game.SegmentType.LEFT && this.isEmptyAtXY(x + 1, y + 1) == false)
+                            (segment.properties.type == game.SegmentType.LEFT &&
+                                this.isEmptyAtXY(x + 1, y + 1) == false))
                             continue;
                         // Drop ourselves down, and then based on our type, possibly also drop down something
                         // else.
@@ -4818,6 +4927,28 @@ var nurdz;
                 [2, 1]]
         };
         /**
+         * This enum is used to reference the list of currently pressed keys during frame update, to see what
+         * the player is doing.
+         */
+        var InputKey;
+        (function (InputKey) {
+            /**
+             * Capsule movement keys.
+             */
+            InputKey[InputKey["LEFT"] = 0] = "LEFT";
+            InputKey[InputKey["RIGHT"] = 1] = "RIGHT";
+            InputKey[InputKey["DOWN"] = 2] = "DOWN";
+            /**
+             * Capsule rotation keys.
+             */
+            InputKey[InputKey["ROTATE_LEFT"] = 3] = "ROTATE_LEFT";
+            InputKey[InputKey["ROTATE_RIGHT"] = 4] = "ROTATE_RIGHT";
+            /**
+             * Placeholder to tell us how big this array is.
+             */
+            InputKey[InputKey["KEY_COUNT"] = 5] = "KEY_COUNT";
+        })(InputKey || (InputKey = {}));
+        /**
          * The scene in which our game is played. This is responsible for drawing the bottle, the pills, and
          * handling the input and game logic.
          */
@@ -4833,6 +4964,9 @@ var nurdz;
             function GameScene(name, stage) {
                 // Invoke the super to set up our instance.
                 _super.call(this, name, stage);
+                // We are neither generating a level nor allowing capsule control right now
+                this._generatingLevel = false;
+                this._controllingCapsule = false;
                 // Create an array of segments that represent all of the possible segment types. We default
                 // the selected segment to be the virus.
                 //
@@ -4874,6 +5008,10 @@ var nurdz;
                 // because that aligns it with the bottom edge of the bottle, which is 1/2 a tile thick.
                 this._virusTextPos = this._bottle.position.copyTranslatedXY(-textSize.x, this._bottle.height - textSize.y -
                     (game.TILE_SIZE / 2));
+                // Set up the key state. We assume that all keys are not pressed at startup.
+                this._keys = [];
+                for (var i = 0; i < InputKey.KEY_COUNT; i++)
+                    this._keys[i] = false;
                 // Now add all of our entities to ourselves. This will cause them to get updated and drawn
                 // automagically.
                 this.addActorArray(this._segments);
@@ -4881,7 +5019,7 @@ var nurdz;
                 this.addActor(this._bottle);
                 this.addActor(this._capsule);
                 // Start a new level generating.
-                this.startNewLevel(20);
+                this.startNewLevel(5);
             }
             /**
              * Given a string of digits, return back a point where the X value indicates how many pixels wide
@@ -4947,6 +5085,41 @@ var nurdz;
                         this._genTicks += GENERATE_TICK;
                     }
                 }
+                // If we're allowed, see what the user wants to do with the capsule. We want to constrain
+                // movements to not happen too often.
+                if (this._controllingCapsule && tick % 3 == 0)
+                    this.controlCapsule();
+            };
+            /**
+             * Check to see if the capsule is being moved by the player. If it is, and the move is allowed, go
+             * ahead and do it.
+             */
+            GameScene.prototype.controlCapsule = function () {
+                if (this._keys[InputKey.DOWN]) {
+                    // Try to drop the capsule. If this doesn't work, we can't move down any more from where
+                    // we are.
+                    if (this._capsule.drop() == false) {
+                        // First, apply the capsule to the bottle contents to put our segments actually into play.
+                        this._capsule.apply();
+                        // Now make ourselves invisible and reset back to the top of the bottle; we also
+                        // select a new type.
+                        this._capsule.properties.visible = false;
+                        this._capsule.properties.type = game.Utils.randomIntInRange(0, 8);
+                        this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
+                        // The user can no longer control the capsule.
+                        this._controllingCapsule = false;
+                        // Now trigger the bottle to see if this did anything.
+                        this._bottle.trigger();
+                    }
+                }
+                else if (this._keys[InputKey.LEFT] && this._capsule.canSlide(true))
+                    this._capsule.slide(true);
+                else if (this._keys[InputKey.RIGHT] && this._capsule.canSlide(false))
+                    this._capsule.slide(false);
+                else if (this._keys[InputKey.ROTATE_LEFT] && this._capsule.canRotate(true))
+                    this._capsule.rotate(true);
+                else if (this._keys[InputKey.ROTATE_RIGHT] && this._capsule.canRotate(false))
+                    this._capsule.rotate(false);
             };
             /**
              * Checks to see if the position provided is inside one of the displayed segments to the left of
@@ -5013,13 +5186,58 @@ var nurdz;
                 return true;
             };
             /**
+             * Handle a key press or release event by marking the key array boolean as appropriate given the
+             * event.
+             *
+             * @param keyCode the key code of the key that was pressed or released
+             * @param pressed true if this was a key press event or false otherwise
+             * @returns {boolean} true if keyCode was an input key that we cared about or false otherwise
+             */
+            GameScene.prototype.handleGameKey = function (keyCode, pressed) {
+                // Store the state of the given key code and return true if this is one we care about.
+                switch (keyCode) {
+                    // These are the keys that control the actual game play.
+                    case game.KeyCodes.KEY_LEFT:
+                        this._keys[InputKey.LEFT] = pressed;
+                        return true;
+                    case game.KeyCodes.KEY_RIGHT:
+                        this._keys[InputKey.RIGHT] = pressed;
+                        return true;
+                    case game.KeyCodes.KEY_DOWN:
+                        this._keys[InputKey.DOWN] = pressed;
+                        return true;
+                    case game.KeyCodes.KEY_Z:
+                        this._keys[InputKey.ROTATE_LEFT] = pressed;
+                        return true;
+                    case game.KeyCodes.KEY_X:
+                        this._keys[InputKey.ROTATE_RIGHT] = pressed;
+                        return true;
+                }
+                // We care not.
+                return false;
+            };
+            /**
+             * This triggers when a keyboard key is released.
+             *
+             * @param eventObj the event that represents the key released
+             * @returns {boolean} true if the key was handled, false otherwise
+             */
+            GameScene.prototype.inputKeyUp = function (eventObj) {
+                // We only need to handle game keys here.
+                return this.handleGameKey(eventObj.keyCode, false);
+            };
+            /**
              * This triggers when a keyboard key is pressed.
              *
              * @param eventObj the event that represents the key pressed
-             *
              * @returns {boolean} true if the key was handled, false otherwise.
              */
             GameScene.prototype.inputKeyDown = function (eventObj) {
+                // If this is a key that is used to control the game, then this will handle it and return
+                // true, in which case we're done./
+                if (this.handleGameKey(eventObj.keyCode, true))
+                    return true;
+                // Check other keys
                 switch (eventObj.keyCode) {
                     // F5 takes a screenshot.
                     case game.KeyCodes.KEY_F5:
@@ -5032,35 +5250,6 @@ var nurdz;
                             color = 0;
                         for (var i = 0; i < this._segments.length; i++)
                             this._segments[i].color = color;
-                        return true;
-                    // The V key cycles the virus poly for the segment with the virus.
-                    case game.KeyCodes.KEY_V:
-                        var poly = this._segments[game.SegmentType.VIRUS].virusPolygon + 1;
-                        if (poly == this._segments[game.SegmentType.VIRUS].virusPolygonCount)
-                            poly = 0;
-                        this._segments[game.SegmentType.VIRUS].virusPolygon = poly;
-                        return true;
-                    // The Spacebar triggers a drop operation, which is signified by triggering with a null
-                    // entity
-                    case game.KeyCodes.KEY_SPACEBAR:
-                        this._bottle.trigger(null);
-                        return true;
-                    // The M key triggers a match operation, which is signified by triggering with a segment
-                    // entity.
-                    case game.KeyCodes.KEY_M:
-                        this._bottle.trigger(this._segments[0]);
-                        return true;
-                    // The number keys from 1 to 7 select a segment. This changes the index of the selected
-                    // item and also changes where the arrow is pointing.
-                    case game.KeyCodes.KEY_1:
-                    case game.KeyCodes.KEY_2:
-                    case game.KeyCodes.KEY_3:
-                    case game.KeyCodes.KEY_4:
-                    case game.KeyCodes.KEY_5:
-                    case game.KeyCodes.KEY_6:
-                    case game.KeyCodes.KEY_7:
-                        this._segmentIndex = eventObj.keyCode - game.KeyCodes.KEY_1;
-                        this._pointer.position.x = this._segments[this._segmentIndex].position.x;
                         return true;
                 }
                 return false;
@@ -5091,6 +5280,7 @@ var nurdz;
                 // Empty the bottle in preparation for the new level and hide the user controlled capsule.
                 this._bottle.emptyBottle();
                 this._capsule.properties.visible = false;
+                this._controllingCapsule = false;
                 // Set the level to generate and turn on our flag that says we are generating a new level.
                 this._level = level;
                 this._levelVirusCount = this.virusesForLevel(this._level);
@@ -5116,6 +5306,7 @@ var nurdz;
                 if (this._bottle.virusCount == this._levelVirusCount) {
                     // Turn off the flag and then show the user capsule, we're ready to play.
                     this._generatingLevel = false;
+                    this._controllingCapsule = true;
                     this._capsule.properties.visible = true;
                     return;
                 }

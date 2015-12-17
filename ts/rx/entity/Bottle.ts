@@ -401,19 +401,11 @@ module nurdz.game
          * This is meant to be invoked every time the capsule that the player is moving around in the bottle
          * comes to rest, to see if any matches need to happen.
          *
-         * @param activator always null
+         * @param activator ignored
          */
         trigger (activator : Actor = null) : void
         {
-            // TODO Really this should always just trigger a match; the drop is just for debugging purposes
-            // Set the flag that indicates that a drop should happen now
-            if (activator == null)
-            {
-                this._dropping = true;
-                this._dropTicks = -1;
-            }
-            else
-                this.checkForMatches ();
+            this.checkForMatches ();
         }
 
         /**
@@ -572,7 +564,8 @@ module nurdz.game
                     //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
                     //     side to drop.
                     if (segment.canFall () == false || this.isEmptyAtXY (x, y + 1) == false ||
-                        segment.properties.type == SegmentType.LEFT && this.isEmptyAtXY (x + 1, y + 1) == false)
+                        (segment.properties.type == SegmentType.LEFT &&
+                        this.isEmptyAtXY (x + 1, y + 1) == false))
                         continue;
 
                     // Drop ourselves down, and then based on our type, possibly also drop down something

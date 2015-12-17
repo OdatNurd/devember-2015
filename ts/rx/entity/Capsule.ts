@@ -179,7 +179,8 @@ module nurdz.game
             if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
                 this._segments[1].render (x + TILE_SIZE, y, renderer, translucent);
             else
-                this._segments[1].render (x, y - TILE_SIZE, renderer, this._mapPosition.y == 0 || translucent);
+                this._segments[1].render (x, y - TILE_SIZE, renderer,
+                                          this._mapPosition.y == 0 || translucent);
         }
 
         /**
@@ -272,6 +273,24 @@ module nurdz.game
         }
 
         /**
+         * Drop the capsule down in the bottle, if it is allowed to do so.
+         *
+         * @returns {boolean} true if the capsule actually dropped, or false otherwise
+         */
+        drop () : boolean
+        {
+            // If we can drop, set our new map position. This will cause the stage position to be
+            // recalculated so that we actually visually change our location.
+            if (this.canDrop ())
+            {
+                this.setMapPositionXY (this._mapPosition.x, this._mapPosition.y + 1);
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
          * Check to see if this capsule can slide to the left (true) or right (false) in the bottle based
          * on its current position or not.
          *
@@ -283,21 +302,140 @@ module nurdz.game
          */
         canSlide (left : boolean) : boolean
         {
-            // If we are vertical, then start by checking to see if our upper segment can slide in the
-            // appropriate direction. This only needs to happen when our current Y position is not 0. We
-            // are allowed to be vertical such that our top segment lies outside of the bottle, and in
-            // this case there is nothing to stop the top part from moving but if we ask the bottle, it
-            // will return NO because the position is outside the bounds of the content area.
-            if (this._properties.orientation == CapsuleOrientation.VERTICAL &&
-                this._mapPosition.y != 0 &&
+            // If we're a horizontal capsule, we can slide left if the position immediately to our left is
+            // clear, and we can slide right if the position two to the right of us is empty.
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                return this._bottle.isEmptyAtXY (this._mapPosition.x + (left ? -1 : 2),
+                                                 this._mapPosition.y) == true;
+
+            // We are vertical, so we need to make sure that our upper and lower segments are both not
+            // obstructed.
+            //
+            // We are allowed to be vertical with our position at the top of the bottle, which puts our
+            // upper segment outside the bottle content area. In this case we only need to check the
+            // bottom; if we try to do the check, the bottle will return false because the row is outside
+            // the content area of the bottle.
+            return (this._mapPosition.y == 0 ||
                 this._bottle.isEmptyAtXY (this._mapPosition.x + (left ? -1 : 1),
-                                          this.mapPosition.y - 1) == false)
+                                          this._mapPosition.y - 1) == true) &&
+                this._bottle.isEmptyAtXY (this._mapPosition.x + (left ? -1 : 1), this._mapPosition.y) == true;
+        }
+
+        /**
+         * Slide the capsule in the bottle, if it is allowed to do so.
+         *
+         * @param left true to slide left or false for a right slide
+         * @returns {boolean} true if the capsule actually slid, or false otherwise
+         */
+        slide (left : boolean) : boolean
+        {
+            // If we can drop, set our new map position. This will cause the stage position to be
+            // recalculated so that we actually visually change our location.
+            if (this.canSlide (left))
+            {
+                if (left)
+                    this.setMapPositionXY (this._mapPosition.x - 1, this._mapPosition.y);
+                else
+                    this.setMapPositionXY (this._mapPosition.x + 1, this._mapPosition.y);
+            }
+
+            return false;
+        }
+
+        /**
+         * Check to see if the capsule can rotate in the bottle or not. The parameter controls what
+         * direction the rotation goes.
+         *
+         * @param left true to check for a left rotation or false to check for a right rotation
+         * @returns {boolean} true if the rotation can happen or false if it cannot
+         */
+        canRotate (left : boolean) : boolean
+        {
+            // When we are a horizontal capsule, the check for rotation is easy.
+            //
+            // Regardless of the direction of the rotation, we always shift the right hand side to be
+            // directly above our position; there is no lateral movement during a rotation to vertical.
+            //
+            // Rotation is always allowed when the capsule position is the top of the bottle, so we need
+            // to always return true in that case because the bottle will return false for the isEmpty
+            // check due to it being outside the bounds of the bottle.
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                return this._mapPosition.y == 0 ||
+                    this._bottle.isEmptyAtXY (this._mapPosition.x, this._mapPosition.y - 1);
+
+            // This must be a vertical capsule. Here the rotation direction doesn't really matter, as
+            // there are only three possible outcomes:
+            //  1) The position immediately to our right is clear, we will rotate there
+            //  2) the position to our right is blocked but the position to our left is open, we will
+            //     rotate and "wall kick" one position to the left
+            //  3) We can't rotate
+            //
+            // As such, here we return true if it is clear either to our left or to our right.
+            return this._bottle.isEmptyAtXY (this._mapPosition.x + 1, this._mapPosition.y) ||
+                this._bottle.isEmptyAtXY (this._mapPosition.x - 1, this._mapPosition.y);
+        }
+
+        /**
+         * Rotate the capsule in the direction provided, if it is allowed to do so.
+         *
+         * Rotating takes the capsule from a horizontal to a vertical orientation, but can also slightly
+         * bump its location in the bottle if the circumstances are right. For example, if the capsule is
+         * against the side of the bottle in a vertical orientation and rotates towards the bottle edge,
+         * it will get kicked away from the wall to rotate (if there is room)
+         *
+         * @param left true to rotate to the left, or false to rotate to the right
+         * @returns {boolean} true if the rotation actually happened or not
+         */
+        rotate (left : boolean) : boolean
+        {
+            // If we can't rotate in the direction asked for, return false right now.
+            if (this.canRotate (left) == false)
                 return false;
 
-            // We are horizontal, so if we're moving left we need to check one segment to our left, or two
-            // segments to the right if we're moving right.
-            return this._bottle.isEmptyAtXY (this._mapPosition.x + (left ? -1 : 2),
-                                             this._mapPosition.y) == true;
+            // What orientation are we in? This determines what we do.
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+            {
+                // Change our orientation to be vertical.
+                this._properties.orientation = CapsuleOrientation.VERTICAL;
+
+                // A rotate to the left (counter-clockwise) doesn't require any extra work; our right side
+                // goes above us and we're good to go.
+                //
+                // Rotating to the right requires a bit more work. Here what is currently the left becomes
+                // the top. This requires us to change our type to the reflection of what it currently is
+                // (blue-red to red-blue, for example).
+                //
+                // Since there are three colors, we can do what we would normally do to extract the left
+                // and right colors and then multiply the right color by 3 to get the left color, adding
+                // it to what the current right color is.
+                if (left == false)
+                {
+                    this._properties.type = ((this._properties.type % 3) * 3) +
+                        Math.floor (this._properties.type / 3);
+                }
+            }
+            else
+            {
+                // Change our orientation to be horizontal.
+                this._properties.orientation = CapsuleOrientation.HORIZONTAL;
+
+                // We are going from a vertical to a horizontal orientation. If the position to our right
+                // is not empty, we are getting wall kicked to the left, so update our position accordingly.
+                if (this._bottle.isEmptyAtXY (this._mapPosition.x + 1, this._mapPosition.y) == false)
+                    this.setMapPositionXY (this._mapPosition.x - 1, this._mapPosition.y);
+
+                // A rotate to the right for a horizontal keeps everything the way it currently is color
+                // wise (the opposite of above), but a rotation to the left swaps our colors around.
+                if (left)
+                {
+                    this._properties.type = ((this._properties.type % 3) * 3) +
+                        Math.floor (this._properties.type / 3);
+                }
+            }
+
+            // Update our segments so that they match our new rotation and color scheme, then return success.
+            this.updateSegments ();
+            return true;
         }
 
         /**
