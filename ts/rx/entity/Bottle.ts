@@ -356,7 +356,7 @@ module nurdz.game
                 {
                     for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
                     {
-                        let segment = this.segmentAt (x, y);
+                        let segment = this.segmentAtXY (x, y);
                         if (segment.properties.type == SegmentType.MATCHED)
                             segment.properties.type = SegmentType.EMPTY;
                     }
@@ -424,7 +424,7 @@ module nurdz.game
          * @param y the Y location in the bottle to get the segment for
          * @returns {Segment} the segment at the given location, or null if that location is invalid
          */
-        private segmentAt (x : number, y : number) : Segment
+        segmentAtXY (x : number, y : number) : Segment
         {
             // If the location provided is not inside the contents of the bottle, then it is not empty space.
             if (x < 0 || y < 0 || x >= BOTTLE_WIDTH || y >= BOTTLE_HEIGHT)
@@ -432,6 +432,21 @@ module nurdz.game
 
             // Return empty status
             return this._contents[y * BOTTLE_WIDTH + x];
+        }
+
+        /**
+         * Given a location in the bottle contents, return the segment object at that location, or null if
+         * the location is not valid.
+         *
+         * The point provided needs to be in bottle content space (i.e. map coordinates), not stage
+         * coordinates.
+         *
+         * @param position the location in the bottle to get the segment for
+         * @returns {Segment} the segment at the given location, or null if that location is invalid
+         */
+        segmentAt (position : Point) : Segment
+        {
+            return this.segmentAtXY (position.x, position.y);
         }
 
         /**
@@ -444,16 +459,33 @@ module nurdz.game
          * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
          * is not or the position is not inside the bottle
          */
-        isEmptyAt (x : number, y : number) : boolean
+        isEmptyAtXY (x : number, y : number) : boolean
         {
             // Get the segment at the provided location. If we got one, return if it's empty. If the
             // location is invalid, the method returns null, in which case we assume that the space is not
             // empty.
-            let segment = this.segmentAt (x, y);
+            let segment = this.segmentAtXY (x, y);
             if (segment != null)
                 return segment.properties.type == SegmentType.EMPTY;
 
             return false;
+        }
+
+        /**
+         * Given a location in the bottle contents, check to see if that position is empty or not.
+         *
+         * When the location provided is out of range for the bottle contents, false is always returned.
+         *
+         * The point provided needs to be in bottle content space (i.e. map coordinates), not stage
+         * coordinates.
+         *
+         * @param position the location in the bottle to check
+         * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
+         * is not or the position is not inside the bottle
+         */
+        isEmptyAt (position : Point) : boolean
+        {
+            return this.isEmptyAtXY (position.x, position.y);
         }
 
         /**
@@ -529,7 +561,7 @@ module nurdz.game
                 for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
                 {
                     // Get the segment at the position we are currently considering.
-                    let segment = this.segmentAt (x, y);
+                    let segment = this.segmentAtXY (x, y);
 
                     // Check and see if we are subject to gravity here. If we are not, we can skip to the
                     // next element.
@@ -539,8 +571,8 @@ module nurdz.game
                     //   o The segment under us is not empty, so there is no place to fall
                     //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
                     //     side to drop.
-                    if (segment.canFall () == false || this.isEmptyAt (x, y + 1) == false ||
-                        segment.properties.type == SegmentType.LEFT && this.isEmptyAt (x + 1, y + 1) == false)
+                    if (segment.canFall () == false || this.isEmptyAtXY (x, y + 1) == false ||
+                        segment.properties.type == SegmentType.LEFT && this.isEmptyAtXY (x + 1, y + 1) == false)
                         continue;
 
                     // Drop ourselves down, and then based on our type, possibly also drop down something
@@ -580,7 +612,7 @@ module nurdz.game
         private markSegment (x : number, y : number) : void
         {
             // Get the segment and then store its current type.
-            let segment = this.segmentAt (x, y);
+            let segment = this.segmentAtXY (x, y);
             let type = segment.properties.type;
 
             // If this segment is already a MATCHED segment, then leave without doing anything else, as
@@ -599,19 +631,19 @@ module nurdz.game
             switch (type)
             {
                 case SegmentType.LEFT:
-                    segment = this.segmentAt (x + 1, y);
+                    segment = this.segmentAtXY (x + 1, y);
                     break;
 
                 case SegmentType.RIGHT:
-                    segment = this.segmentAt (x - 1, y);
+                    segment = this.segmentAtXY (x - 1, y);
                     break;
 
                 case SegmentType.TOP:
-                    segment = this.segmentAt (x, y + 1);
+                    segment = this.segmentAtXY (x, y + 1);
                     break;
 
                 case SegmentType.BOTTOM:
-                    segment = this.segmentAt (x, y - 1);
+                    segment = this.segmentAtXY (x, y - 1);
                     break;
 
                 // Nothing to fix up for any other segment
@@ -685,7 +717,7 @@ module nurdz.game
             while (x < BOTTLE_WIDTH - MATCH_LENGTH + 1)
             {
                 // Get the segment at this location.
-                let segment = this.segmentAt (x, y);
+                let segment = this.segmentAtXY (x, y);
 
                 // If we're empty, then skip ahead to the next element; empty segments can't be a part of
                 // a match.
@@ -698,7 +730,7 @@ module nurdz.game
                 // See how many elements to the right we can go until we find an element that does not
                 // match this one.
                 let searchX = x + 1;
-                while (segment.matches (this.segmentAt (searchX, y)))
+                while (segment.matches (this.segmentAtXY (searchX, y)))
                     searchX++;
 
                 // Calculate how long the match is. If it's long enough, then we need to mark the match
@@ -736,7 +768,7 @@ module nurdz.game
             while (y < BOTTLE_HEIGHT - MATCH_LENGTH + 1)
             {
                 // Get the segment at this location.
-                let segment = this.segmentAt (x, y);
+                let segment = this.segmentAtXY (x, y);
 
                 // If we're empty, then skip ahead to the next element; empty segments can't be a part of
                 // a match.
@@ -749,7 +781,7 @@ module nurdz.game
                 // See how many elements downwards we can go until we find an element that does not match
                 // this one.
                 let searchY = y + 1;
-                while (segment.matches (this.segmentAt (x, searchY)))
+                while (segment.matches (this.segmentAtXY (x, searchY)))
                     searchY++;
 
                 // Calculate how long the match is. If it's long enough, then we need to mark the match
@@ -931,7 +963,7 @@ module nurdz.game
              */
             let getVirusColor = (x : number, y : number, results : Array<SegmentColor>) : void =>
             {
-                let segment = this.segmentAt (x, y);
+                let segment = this.segmentAtXY (x, y);
                 if (segment != null && segment.properties.type == SegmentType.VIRUS)
                     results.push (segment.properties.color);
             };
@@ -979,7 +1011,7 @@ module nurdz.game
 
             // As long as the virus position that we have selected is not empty, advance to the next
             // position.
-            while (this.segmentAt (virusPos.x, virusPos.y).properties.type != SegmentType.EMPTY)
+            while (this.segmentAtXY (virusPos.x, virusPos.y).properties.type != SegmentType.EMPTY)
             {
                 if (adjustVirusPosition () == false)
                     return false;
@@ -1015,7 +1047,7 @@ module nurdz.game
             }
 
             // We found a color that's OK, so get the segment and set it up as a virus, then indicate success.
-            let virus = this.segmentAt (virusPos.x, virusPos.y);
+            let virus = this.segmentAtXY (virusPos.x, virusPos.y);
             virus.type = SegmentType.VIRUS;
             virus.color = virusColor;
             virus.virusPolygon = Utils.randomIntInRange (0, 2);
@@ -1086,7 +1118,7 @@ module nurdz.game
             {
                 for (let x = 0 ; x < BOTTLE_WIDTH ; x++)
                 {
-                    if (this.segmentAt (x, y).properties.type == SegmentType.VIRUS)
+                    if (this.segmentAtXY (x, y).properties.type == SegmentType.VIRUS)
                         this._virusCount++;
                 }
             }
