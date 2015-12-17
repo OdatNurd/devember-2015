@@ -60,6 +60,14 @@ module nurdz.game
          * as controlling how the capsule interacts with the rest of the bottle contents.
          */
         orientation? : CapsuleOrientation;
+
+        /**
+         * When true, we render ourselves when asked; otherwise we silently ignore render calls.
+         *
+         * This is used to hide the capsule that is being held ready to drop into the bottle at the start
+         * of rounds.
+         */
+        visible? : boolean;
     }
 
     /**
@@ -120,7 +128,8 @@ module nurdz.game
             // Here we set the type and orientation parameters directly into our properties.
             super ("Capsule", stage, 1, 1, TILE_SIZE * 2, TILE_SIZE, 1, <CapsuleProperties> {
                 type:        type,
-                orientation: orientation
+                orientation: orientation,
+                visible:     true
             }, {}, '#333333');
 
             // Save the bottle that we were provided.
@@ -148,6 +157,10 @@ module nurdz.game
          */
         render (x : number, y : number, renderer : CanvasRenderer) : void
         {
+            // If we're not visible, leave.
+            if (this._properties.visible == false)
+                return;
+
             // First segment always renders at exactly the position specified, regardless of orientation.
             this._segments[0].render (x, y, renderer);
 
@@ -226,6 +239,115 @@ module nurdz.game
             // integer division gives us the color on the left side.
             this._segments[0].properties.color = Math.floor (this._properties.type / 3);
             this._segments[1].properties.color = this._properties.type % 3;
+        }
+
+        /**
+         * Check to see if this capsule can drop down into the bottle based on its current position or not.
+         *
+         * This checks the content of the bottle below our current position to see if it is empty or not,
+         * taking our orientation into account, and returns an appropriate value.
+         *
+         * @returns {boolean} true if the capsule can drop down from its current position, or false otherwise.
+         */
+        canDrop () : boolean
+        {
+            // If we are horizontal and the bottle position underneath our right side is not empty, we
+            // can't drop.
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL &&
+                this._bottle.isEmptyAtXY (this._mapPosition.x + 1, this._mapPosition.y + 1) == false)
+                return false;
+
+            // We can drop if the space below us is empty.
+            return this._bottle.isEmptyAtXY (this._mapPosition.x, this._mapPosition.y + 1) == true;
+        }
+
+        /**
+         * Check to see if this capsule can slide to the left (true) or right (false) in the bottle based
+         * on its current position or not.
+         *
+         * This checks the content of the bottle to the right or left of our current position to see if it
+         * is empty or not, taking our orientation into account, and returns an appropriate value.
+         *
+         * @param left true to check if we can slide left or false to check for a right slide
+         * @returns {boolean} true if the capsule can slide in this direction, or false otherwise.
+         */
+        canSlide (left : boolean) : boolean
+        {
+            // If we are vertical, then start by checking to see if our upper segment can slide in the
+            // appropriate direction. This only needs to happen when our current Y position is not 0. We
+            // are allowed to be vertical such that our top segment lies outside of the bottle, and in
+            // this case there is nothing to stop the top part from moving but if we ask the bottle, it
+            // will return NO because the position is outside the bounds of the content area.
+            if (this._properties.orientation == CapsuleOrientation.VERTICAL &&
+                this._mapPosition.y != 0 &&
+                this._bottle.isEmptyAtXY (this._mapPosition.x + (left ? -1 : 1),
+                                          this.mapPosition.y - 1) == false)
+                return false;
+
+            // We are horizontal, so if we're moving left we need to check one segment to our left, or two
+            // segments to the right if we're moving right.
+            return this._bottle.isEmptyAtXY (this._mapPosition.x + (left ? -1 : 2),
+                                             this._mapPosition.y) == true;
+        }
+
+        /**
+         * Copy the defining properties of the source segment to the destination segment provided, so that
+         * the destination becomes the same type of segment.
+         *
+         * If the destination segment is null, nothing happens.
+         *
+         * @param source the segment to copy
+         * @param destination the segment to copy properties to, or null to do nothing
+         */
+        private copySegmentInfo (source : Segment, destination : Segment) : void
+        {
+            if (destination)
+            {
+                // Copy type and color over. Since we're part of a capsule, we will never be a virus so we
+                // don't need to propagate the virus polygon over.
+                destination.properties.type = source.properties.type;
+                destination.properties.color = source.properties.color;
+            }
+        }
+
+        /**
+         * Apply the contents of this capsule to the bottle, using the currently set map position as the
+         * position in the bottle.
+         *
+         * This will overwrite the contents of the bottle; no checks are done to ensure that the contents
+         * are empty first.
+         *
+         * Note however that this will take care to do the Right Thing (tm) if any part of the segment is
+         * outside of the bottle content area.
+         */
+        apply () : void
+        {
+            // Get the segment at our direct position and then copy our first segment into it.
+            let segment = this._bottle.segmentAt (this._mapPosition);
+            this.copySegmentInfo (this._segments[0], segment);
+
+            // If we are vertical and our position is 0 on the Y axis, then our top segment is outside of
+            // the bottle. In this case, when we apply we should actually apply as a single segment and not
+            // a bottom, because the top part of the capsule got "cut off".
+            //
+            // This replicates how the original Dr. Mario handles this situation/
+            if (this._properties.orientation == CapsuleOrientation.VERTICAL && this._mapPosition.y == 0)
+            {
+                // Change the segment to be a single segment, and then leave because there's nothing else to
+                // do in this situation.
+                segment.properties.type = SegmentType.SINGLE;
+                return;
+            }
+
+            // Get the other segment for our other capsule end. This is either to the right of us or above
+            // us depending on our orientation.
+            if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                segment = this._bottle.segmentAtXY (this._mapPosition.x + 1, this._mapPosition.y);
+            else
+                segment = this._bottle.segmentAtXY (this._mapPosition.x, this._mapPosition.y - 1);
+
+            // Copy it over now.
+            this.copySegmentInfo (this._segments[1], segment);
         }
     }
 }

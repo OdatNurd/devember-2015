@@ -507,8 +507,9 @@ module nurdz.game
          */
         private startNewLevel (level : number) : void
         {
-            // Empty the bottle in preparation for the new level.
+            // Empty the bottle in preparation for the new level and hide the user controlled capsule.
             this._bottle.emptyBottle ();
+            this._capsule.properties.visible = false;
 
             // Set the level to generate and turn on our flag that says we are generating a new level.
             this._level = level;
@@ -538,7 +539,9 @@ module nurdz.game
             // If the number of viruses in the bottle is the number that we want to generate, we're done.
             if (this._bottle.virusCount == this._levelVirusCount)
             {
+                // Turn off the flag and then show the user capsule, we're ready to play.
                 this._generatingLevel = false;
+                this._capsule.properties.visible = true;
                 return;
             }
 

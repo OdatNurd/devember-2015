@@ -3551,7 +3551,8 @@ var nurdz;
                 // Here we set the type and orientation parameters directly into our properties.
                 _super.call(this, "Capsule", stage, 1, 1, game.TILE_SIZE * 2, game.TILE_SIZE, 1, {
                     type: type,
-                    orientation: orientation
+                    orientation: orientation,
+                    visible: true
                 }, {}, '#333333');
                 // Save the bottle that we were provided.
                 this._bottle = bottle;
@@ -3580,6 +3581,9 @@ var nurdz;
              * @param renderer the renderer that renders us
              */
             Capsule.prototype.render = function (x, y, renderer) {
+                // If we're not visible, leave.
+                if (this._properties.visible == false)
+                    return;
                 // First segment always renders at exactly the position specified, regardless of orientation.
                 this._segments[0].render(x, y, renderer);
                 // The second segment renders either to the right of this position or above it, depending on
@@ -3647,6 +3651,98 @@ var nurdz;
                 // integer division gives us the color on the left side.
                 this._segments[0].properties.color = Math.floor(this._properties.type / 3);
                 this._segments[1].properties.color = this._properties.type % 3;
+            };
+            /**
+             * Check to see if this capsule can drop down into the bottle based on its current position or not.
+             *
+             * This checks the content of the bottle below our current position to see if it is empty or not,
+             * taking our orientation into account, and returns an appropriate value.
+             *
+             * @returns {boolean} true if the capsule can drop down from its current position, or false otherwise.
+             */
+            Capsule.prototype.canDrop = function () {
+                // If we are horizontal and the bottle position underneath our right side is not empty, we
+                // can't drop.
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL &&
+                    this._bottle.isEmptyAtXY(this._mapPosition.x + 1, this._mapPosition.y + 1) == false)
+                    return false;
+                // We can drop if the space below us is empty.
+                return this._bottle.isEmptyAtXY(this._mapPosition.x, this._mapPosition.y + 1) == true;
+            };
+            /**
+             * Check to see if this capsule can slide to the left (true) or right (false) in the bottle based
+             * on its current position or not.
+             *
+             * This checks the content of the bottle to the right or left of our current position to see if it
+             * is empty or not, taking our orientation into account, and returns an appropriate value.
+             *
+             * @param left true to check if we can slide left or false to check for a right slide
+             * @returns {boolean} true if the capsule can slide in this direction, or false otherwise.
+             */
+            Capsule.prototype.canSlide = function (left) {
+                // If we are vertical, then start by checking to see if our upper segment can slide in the
+                // appropriate direction. This only needs to happen when our current Y position is not 0. We
+                // are allowed to be vertical such that our top segment lies outside of the bottle, and in
+                // this case there is nothing to stop the top part from moving but if we ask the bottle, it
+                // will return NO because the position is outside the bounds of the content area.
+                if (this._properties.orientation == CapsuleOrientation.VERTICAL &&
+                    this._mapPosition.y != 0 &&
+                    this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 1), this.mapPosition.y - 1) == false)
+                    return false;
+                // We are horizontal, so if we're moving left we need to check one segment to our left, or two
+                // segments to the right if we're moving right.
+                return this._bottle.isEmptyAtXY(this._mapPosition.x + (left ? -1 : 2), this._mapPosition.y) == true;
+            };
+            /**
+             * Copy the defining properties of the source segment to the destination segment provided, so that
+             * the destination becomes the same type of segment.
+             *
+             * If the destination segment is null, nothing happens.
+             *
+             * @param source the segment to copy
+             * @param destination the segment to copy properties to, or null to do nothing
+             */
+            Capsule.prototype.copySegmentInfo = function (source, destination) {
+                if (destination) {
+                    // Copy type and color over. Since we're part of a capsule, we will never be a virus so we
+                    // don't need to propagate the virus polygon over.
+                    destination.properties.type = source.properties.type;
+                    destination.properties.color = source.properties.color;
+                }
+            };
+            /**
+             * Apply the contents of this capsule to the bottle, using the currently set map position as the
+             * position in the bottle.
+             *
+             * This will overwrite the contents of the bottle; no checks are done to ensure that the contents
+             * are empty first.
+             *
+             * Note however that this will take care to do the Right Thing (tm) if any part of the segment is
+             * outside of the bottle content area.
+             */
+            Capsule.prototype.apply = function () {
+                // Get the segment at our direct position and then copy our first segment into it.
+                var segment = this._bottle.segmentAt(this._mapPosition);
+                this.copySegmentInfo(this._segments[0], segment);
+                // If we are vertical and our position is 0 on the Y axis, then our top segment is outside of
+                // the bottle. In this case, when we apply we should actually apply as a single segment and not
+                // a bottom, because the top part of the capsule got "cut off".
+                //
+                // This replicates how the original Dr. Mario handles this situation/
+                if (this._properties.orientation == CapsuleOrientation.VERTICAL && this._mapPosition.y == 0) {
+                    // Change the segment to be a single segment, and then leave because there's nothing else to
+                    // do in this situation.
+                    segment.properties.type = game.SegmentType.SINGLE;
+                    return;
+                }
+                // Get the other segment for our other capsule end. This is either to the right of us or above
+                // us depending on our orientation.
+                if (this._properties.orientation == CapsuleOrientation.HORIZONTAL)
+                    segment = this._bottle.segmentAtXY(this._mapPosition.x + 1, this._mapPosition.y);
+                else
+                    segment = this._bottle.segmentAtXY(this._mapPosition.x, this._mapPosition.y - 1);
+                // Copy it over now.
+                this.copySegmentInfo(this._segments[1], segment);
             };
             return Capsule;
         })(game.Entity);
@@ -3894,7 +3990,7 @@ var nurdz;
                     // Scan over the entire bottle contents and replace all matched segments with empty ones.
                     for (var y = 0; y < BOTTLE_HEIGHT; y++) {
                         for (var x = 0; x < BOTTLE_WIDTH; x++) {
-                            var segment = this.segmentAt(x, y);
+                            var segment = this.segmentAtXY(x, y);
                             if (segment.properties.type == game.SegmentType.MATCHED)
                                 segment.properties.type = game.SegmentType.EMPTY;
                         }
@@ -3952,12 +4048,25 @@ var nurdz;
              * @param y the Y location in the bottle to get the segment for
              * @returns {Segment} the segment at the given location, or null if that location is invalid
              */
-            Bottle.prototype.segmentAt = function (x, y) {
+            Bottle.prototype.segmentAtXY = function (x, y) {
                 // If the location provided is not inside the contents of the bottle, then it is not empty space.
                 if (x < 0 || y < 0 || x >= BOTTLE_WIDTH || y >= BOTTLE_HEIGHT)
                     return null;
                 // Return empty status
                 return this._contents[y * BOTTLE_WIDTH + x];
+            };
+            /**
+             * Given a location in the bottle contents, return the segment object at that location, or null if
+             * the location is not valid.
+             *
+             * The point provided needs to be in bottle content space (i.e. map coordinates), not stage
+             * coordinates.
+             *
+             * @param position the location in the bottle to get the segment for
+             * @returns {Segment} the segment at the given location, or null if that location is invalid
+             */
+            Bottle.prototype.segmentAt = function (position) {
+                return this.segmentAtXY(position.x, position.y);
             };
             /**
              * Given a location in the bottle contents, check to see if that position is empty or not.
@@ -3969,14 +4078,29 @@ var nurdz;
              * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
              * is not or the position is not inside the bottle
              */
-            Bottle.prototype.isEmptyAt = function (x, y) {
+            Bottle.prototype.isEmptyAtXY = function (x, y) {
                 // Get the segment at the provided location. If we got one, return if it's empty. If the
                 // location is invalid, the method returns null, in which case we assume that the space is not
                 // empty.
-                var segment = this.segmentAt(x, y);
+                var segment = this.segmentAtXY(x, y);
                 if (segment != null)
                     return segment.properties.type == game.SegmentType.EMPTY;
                 return false;
+            };
+            /**
+             * Given a location in the bottle contents, check to see if that position is empty or not.
+             *
+             * When the location provided is out of range for the bottle contents, false is always returned.
+             *
+             * The point provided needs to be in bottle content space (i.e. map coordinates), not stage
+             * coordinates.
+             *
+             * @param position the location in the bottle to check
+             * @returns {boolean} true if the segment at that position in the bottle is empty, or false if it
+             * is not or the position is not inside the bottle
+             */
+            Bottle.prototype.isEmptyAt = function (position) {
+                return this.isEmptyAtXY(position.x, position.y);
             };
             /**
              * This method takes a point that is in the coordinate system of the bottle contents and converts
@@ -4042,7 +4166,7 @@ var nurdz;
                 for (var y = BOTTLE_HEIGHT - 2; y >= 0; y--) {
                     for (var x = 0; x < BOTTLE_WIDTH; x++) {
                         // Get the segment at the position we are currently considering.
-                        var segment = this.segmentAt(x, y);
+                        var segment = this.segmentAtXY(x, y);
                         // Check and see if we are subject to gravity here. If we are not, we can skip to the
                         // next element.
                         //
@@ -4051,8 +4175,8 @@ var nurdz;
                         //   o The segment under us is not empty, so there is no place to fall
                         //   o We are a LEFT side capsule, but there is no empty space for our attached RIGHT
                         //     side to drop.
-                        if (segment.canFall() == false || this.isEmptyAt(x, y + 1) == false ||
-                            segment.properties.type == game.SegmentType.LEFT && this.isEmptyAt(x + 1, y + 1) == false)
+                        if (segment.canFall() == false || this.isEmptyAtXY(x, y + 1) == false ||
+                            segment.properties.type == game.SegmentType.LEFT && this.isEmptyAtXY(x + 1, y + 1) == false)
                             continue;
                         // Drop ourselves down, and then based on our type, possibly also drop down something
                         // else.
@@ -4085,7 +4209,7 @@ var nurdz;
              */
             Bottle.prototype.markSegment = function (x, y) {
                 // Get the segment and then store its current type.
-                var segment = this.segmentAt(x, y);
+                var segment = this.segmentAtXY(x, y);
                 var type = segment.properties.type;
                 // If this segment is already a MATCHED segment, then leave without doing anything else, as
                 // this was already taken care of as a part of the match somewhere else.
@@ -4100,16 +4224,16 @@ var nurdz;
                 segment.properties.type = game.SegmentType.MATCHED;
                 switch (type) {
                     case game.SegmentType.LEFT:
-                        segment = this.segmentAt(x + 1, y);
+                        segment = this.segmentAtXY(x + 1, y);
                         break;
                     case game.SegmentType.RIGHT:
-                        segment = this.segmentAt(x - 1, y);
+                        segment = this.segmentAtXY(x - 1, y);
                         break;
                     case game.SegmentType.TOP:
-                        segment = this.segmentAt(x, y + 1);
+                        segment = this.segmentAtXY(x, y + 1);
                         break;
                     case game.SegmentType.BOTTOM:
-                        segment = this.segmentAt(x, y - 1);
+                        segment = this.segmentAtXY(x, y - 1);
                         break;
                     // Nothing to fix up for any other segment
                     default:
@@ -4170,7 +4294,7 @@ var nurdz;
                 var x = 0;
                 while (x < BOTTLE_WIDTH - MATCH_LENGTH + 1) {
                     // Get the segment at this location.
-                    var segment = this.segmentAt(x, y);
+                    var segment = this.segmentAtXY(x, y);
                     // If we're empty, then skip ahead to the next element; empty segments can't be a part of
                     // a match.
                     if (segment.properties.type == game.SegmentType.EMPTY) {
@@ -4180,7 +4304,7 @@ var nurdz;
                     // See how many elements to the right we can go until we find an element that does not
                     // match this one.
                     var searchX = x + 1;
-                    while (segment.matches(this.segmentAt(searchX, y)))
+                    while (segment.matches(this.segmentAtXY(searchX, y)))
                         searchX++;
                     // Calculate how long the match is. If it's long enough, then we need to mark the match
                     // for all of those segments and then set the flag that says that we found a match.
@@ -4210,7 +4334,7 @@ var nurdz;
                 var y = 0;
                 while (y < BOTTLE_HEIGHT - MATCH_LENGTH + 1) {
                     // Get the segment at this location.
-                    var segment = this.segmentAt(x, y);
+                    var segment = this.segmentAtXY(x, y);
                     // If we're empty, then skip ahead to the next element; empty segments can't be a part of
                     // a match.
                     if (segment.properties.type == game.SegmentType.EMPTY) {
@@ -4220,7 +4344,7 @@ var nurdz;
                     // See how many elements downwards we can go until we find an element that does not match
                     // this one.
                     var searchY = y + 1;
-                    while (segment.matches(this.segmentAt(x, searchY)))
+                    while (segment.matches(this.segmentAtXY(x, searchY)))
                         searchY++;
                     // Calculate how long the match is. If it's long enough, then we need to mark the match
                     // for all of those segments and then set the flag that says that we found a match.
@@ -4374,7 +4498,7 @@ var nurdz;
                  * @param results the array to insert the color into.
                  */
                 var getVirusColor = function (x, y, results) {
-                    var segment = _this.segmentAt(x, y);
+                    var segment = _this.segmentAtXY(x, y);
                     if (segment != null && segment.properties.type == game.SegmentType.VIRUS)
                         results.push(segment.properties.color);
                 };
@@ -4413,7 +4537,7 @@ var nurdz;
                 }
                 // As long as the virus position that we have selected is not empty, advance to the next
                 // position.
-                while (this.segmentAt(virusPos.x, virusPos.y).properties.type != game.SegmentType.EMPTY) {
+                while (this.segmentAtXY(virusPos.x, virusPos.y).properties.type != game.SegmentType.EMPTY) {
                     if (adjustVirusPosition() == false)
                         return false;
                 }
@@ -4443,7 +4567,7 @@ var nurdz;
                         virusColor = game.SegmentColor.BLUE;
                 }
                 // We found a color that's OK, so get the segment and set it up as a virus, then indicate success.
-                var virus = this.segmentAt(virusPos.x, virusPos.y);
+                var virus = this.segmentAtXY(virusPos.x, virusPos.y);
                 virus.type = game.SegmentType.VIRUS;
                 virus.color = virusColor;
                 virus.virusPolygon = game.Utils.randomIntInRange(0, 2);
@@ -4501,7 +4625,7 @@ var nurdz;
                 this._virusCount = 0;
                 for (var y = 0; y < BOTTLE_HEIGHT; y++) {
                     for (var x = 0; x < BOTTLE_WIDTH; x++) {
-                        if (this.segmentAt(x, y).properties.type == game.SegmentType.VIRUS)
+                        if (this.segmentAtXY(x, y).properties.type == game.SegmentType.VIRUS)
                             this._virusCount++;
                     }
                 }
@@ -4935,8 +5059,9 @@ var nurdz;
              * @param level the level to start.
              */
             GameScene.prototype.startNewLevel = function (level) {
-                // Empty the bottle in preparation for the new level.
+                // Empty the bottle in preparation for the new level and hide the user controlled capsule.
                 this._bottle.emptyBottle();
+                this._capsule.properties.visible = false;
                 // Set the level to generate and turn on our flag that says we are generating a new level.
                 this._level = level;
                 this._levelVirusCount = this.virusesForLevel(this._level);
@@ -4960,7 +5085,9 @@ var nurdz;
             GameScene.prototype.virusGenerationStep = function () {
                 // If the number of viruses in the bottle is the number that we want to generate, we're done.
                 if (this._bottle.virusCount == this._levelVirusCount) {
+                    // Turn off the flag and then show the user capsule, we're ready to play.
                     this._generatingLevel = false;
+                    this._capsule.properties.visible = true;
                     return;
                 }
                 // Insert a virus into the bottle.
