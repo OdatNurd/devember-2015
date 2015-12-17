@@ -233,8 +233,7 @@ module nurdz.game
         // @formatter:on
 
         /**
-         * The color of this segment. This is a value that allows for comparisons and is used to set up
-         * the colorStr member; this one is not used directly in rendering.
+         * The color of this segment.
          */
         color? : SegmentColor;
 
@@ -243,12 +242,6 @@ module nurdz.game
          * This is selected at construction time.
          */
         poly? : VirusModel;
-
-        /**
-         * The color specification to be used for this segment when it is rendered. This is set from the
-         * color member at construction time and is not updated when the color property is updated.
-         */
-        colorStr? : string;
 
         /**
          * This property is optional; if present, a true value indicates that the segment should render
@@ -317,13 +310,11 @@ module nurdz.game
         { return this._properties.color; }
 
         /**
-         * Change the segment color of this segment to be the new color. This updates both of the color
-         * properties so that the segment will actually render in the correct color.
+         * Change the segment color of this segment to be the new color.
          */
         set color (color : SegmentColor)
         {
             this._properties.color = color;
-            this._properties.colorStr = RENDER_COLORS[color];
         }
 
         /**
@@ -333,7 +324,6 @@ module nurdz.game
          */
         get virusPolygon () : number
         { return this._virusPolygon; }
-
 
         /**
          * Change the polygon used to render this segment when it is rendered as a virus.
@@ -390,9 +380,6 @@ module nurdz.game
             // If this is a virus, we need to set the polygon too.
             if (type == SegmentType.VIRUS)
                 this.virusPolygon = Utils.randomIntInRange (0, 2);
-
-            // Lastly, we need to set up the color string based on the color specification we were given.
-            this._properties.colorStr = RENDER_COLORS[this._properties.color];
         }
 
         /**
@@ -411,7 +398,7 @@ module nurdz.game
                 vColor = '#cccccc';
 
             // Render out all of the polygons now.
-            renderer.fillPolygon (this._properties.poly.body, this._properties.colorStr);
+            renderer.fillPolygon (this._properties.poly.body, RENDER_COLORS[this._properties.color]);
             renderer.fillPolygon (this._properties.poly.leftEye, vColor);
             renderer.fillPolygon (this._properties.poly.rightEye, vColor);
             renderer.fillPolygon (this._properties.poly.mouth, vColor);
@@ -427,20 +414,23 @@ module nurdz.game
          */
         private renderCapsuleSegment (renderer : CanvasRenderer) : void
         {
+            // Alias the color that we're going to use to render
+            let colorStr = RENDER_COLORS[this._properties.color];
+
             // How we render depends on our type.
             switch (this._properties.type)
             {
                 // A single segment capsule is just a circle centered in the cell.
                 case SegmentType.SINGLE:
-                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 2, this._properties.colorStr);
+                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 2, colorStr);
                     return;
 
                 // A segment that is a part of a match. This is an intermediate state between when a match
                 // has been detected and when the segment is made empty.
                 case SegmentType.MATCHED:
-                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 3, this._properties.colorStr);
+                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 3, colorStr);
                     renderer.fillCircle (0, 0, SEGMENT_SIZE / 4, '#000000');
-                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 5, this._properties.colorStr);
+                    renderer.fillCircle (0, 0, SEGMENT_SIZE / 5, colorStr);
                     return;
 
                 // The remainder of the cases are (or should be) one of the four capsule segments that are
@@ -448,7 +438,7 @@ module nurdz.game
                 // handed segment because we assume the canvas has been rotated as appropriate.
                 default:
                     // Draw the circular portion. This describes a half circle for a right hand capsule end.
-                    renderer.context.fillStyle = this._properties.colorStr;
+                    renderer.context.fillStyle = colorStr;
                     renderer.context.beginPath ();
                     renderer.context.arc (0, 0, SEGMENT_SIZE / 2, Math.PI * 1.5, Math.PI / 2);
                     renderer.context.fill ();
@@ -461,7 +451,7 @@ module nurdz.game
                     // when two halves are together they don't appear to have a seam.
                     renderer.fillRect (-TILE_SIZE / 2, -SEGMENT_SIZE / 2,
                                        TILE_SIZE / 2, SEGMENT_SIZE,
-                                       this._properties.colorStr);
+                                       colorStr);
                     return;
             }
         }
