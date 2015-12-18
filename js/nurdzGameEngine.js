@@ -4973,6 +4973,7 @@ var nurdz;
                 // We are neither generating a level nor allowing capsule control right now
                 this._generatingLevel = false;
                 this._controllingCapsule = false;
+                this._gameOver = false;
                 // Create an array of segments that represent all of the possible segment types. We default
                 // the selected segment to be the virus.
                 //
@@ -5051,9 +5052,10 @@ var nurdz;
                 // Clear the canvas, then let the super render everything for us.
                 this._renderer.clear('black');
                 _super.prototype.render.call(this);
-                // Draw the number of viruses left in the bottle.
-                this.renderNumber(this._virusTextPos.x, this._virusTextPos.y, 'white', this._bottle.virusCount + "");
-                // Draw the current level
+                // If the game is not over, render the number of viruses in the bottle.
+                if (this._gameOver == false)
+                    this.renderNumber(this._virusTextPos.x, this._virusTextPos.y, 'white', this._bottle.virusCount + "");
+                // Draw the current level; this always happens so you know what level you bailed at.
                 this.renderNumber(this._levelTextPos.x, this._levelTextPos.y, 'white', this._level + "");
             };
             /**
@@ -5105,7 +5107,14 @@ var nurdz;
                     // Try to drop the capsule. If this doesn't work, we can't move down any more from where
                     // we are.
                     if (this._capsule.drop() == false) {
-                        // Make the capsule invisible and stop the user from controlling it.
+                        // If the capsule is currently still outside the bottle, then the bottle is all filled
+                        // up, and so the game is now over.
+                        if (this._capsule.mapPosition.y < 0) {
+                            this.gameOver();
+                            return;
+                        }
+                        // Just a normal capsule drop; make the capsule invisible and stop the user from being
+                        // able to control it.
                         this._capsule.properties.visible = false;
                         this._controllingCapsule = false;
                         // Now apply the capsule to the bottle contents and trigger the bottle to see if this
@@ -5279,6 +5288,8 @@ var nurdz;
              * @param level the level to start.
              */
             GameScene.prototype.startNewLevel = function (level) {
+                // Make sure the game is no longer over.
+                this._gameOver = false;
                 // Empty the bottle in preparation for the new level and hide the user controlled capsule.
                 this._bottle.emptyBottle();
                 this._capsule.properties.visible = false;
@@ -5288,6 +5299,19 @@ var nurdz;
                 this._levelVirusCount = this.virusesForLevel(this._level);
                 this._generatingLevel = true;
                 this._genTicks = this._stage.tick;
+            };
+            /**
+             * This gets invoked when the scene detects that the game is over; the user controlled capsule could
+             * not drop down, but it was still outside the bottle, which means that everything is too blocked up
+             * to continue.
+             */
+            GameScene.prototype.gameOver = function () {
+                // Game is over now.
+                this._gameOver = true;
+                // Empty the bottle, hide the user capsule, and stop the user from controlling it.
+                this._bottle.emptyBottle();
+                this._capsule.properties.visible = false;
+                this._controllingCapsule = false;
             };
             /**
              * The bottle invokes this whenever a match completes that removes the last of the viruses from

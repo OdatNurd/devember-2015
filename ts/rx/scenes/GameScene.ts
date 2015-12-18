@@ -212,6 +212,11 @@ module nurdz.game
         private _genTicks : number;
 
         /**
+         * True when the game is over.
+         */
+        private _gameOver : boolean;
+
+        /**
          * This tracks the input state of the keys that control the actual game play (i.e. this excludes
          * things like the screenshot and other debug keys).
          *
@@ -256,6 +261,7 @@ module nurdz.game
             // We are neither generating a level nor allowing capsule control right now
             this._generatingLevel = false;
             this._controllingCapsule = false;
+            this._gameOver = false;
 
             // Create an array of segments that represent all of the possible segment types. We default
             // the selected segment to be the virus.
@@ -337,11 +343,12 @@ module nurdz.game
             this._renderer.clear ('black');
             super.render ();
 
-            // Draw the number of viruses left in the bottle.
-            this.renderNumber (this._virusTextPos.x, this._virusTextPos.y, 'white',
-                               this._bottle.virusCount + "");
+            // If the game is not over, render the number of viruses in the bottle.
+            if (this._gameOver == false)
+                this.renderNumber (this._virusTextPos.x, this._virusTextPos.y, 'white',
+                                   this._bottle.virusCount + "");
 
-            // Draw the current level
+            // Draw the current level; this always happens so you know what level you bailed at.
             this.renderNumber (this._levelTextPos.x, this._levelTextPos.y,
                                'white', this._level + "");
         }
@@ -410,7 +417,16 @@ module nurdz.game
                 // we are.
                 if (this._capsule.drop () == false)
                 {
-                    // Make the capsule invisible and stop the user from controlling it.
+                    // If the capsule is currently still outside the bottle, then the bottle is all filled
+                    // up, and so the game is now over.
+                    if (this._capsule.mapPosition.y < 0)
+                    {
+                        this.gameOver ();
+                        return;
+                    }
+
+                    // Just a normal capsule drop; make the capsule invisible and stop the user from being
+                    // able to control it.
                     this._capsule.properties.visible = false;
                     this._controllingCapsule = false;
 
@@ -622,6 +638,9 @@ module nurdz.game
          */
         private startNewLevel (level : number) : void
         {
+            // Make sure the game is no longer over.
+            this._gameOver = false;
+
             // Empty the bottle in preparation for the new level and hide the user controlled capsule.
             this._bottle.emptyBottle ();
             this._capsule.properties.visible = false;
@@ -632,7 +651,22 @@ module nurdz.game
             this._levelVirusCount = this.virusesForLevel (this._level);
             this._generatingLevel = true;
             this._genTicks = this._stage.tick;
+        }
 
+        /**
+         * This gets invoked when the scene detects that the game is over; the user controlled capsule could
+         * not drop down, but it was still outside the bottle, which means that everything is too blocked up
+         * to continue.
+         */
+        private gameOver () : void
+        {
+            // Game is over now.
+            this._gameOver = true;
+
+            // Empty the bottle, hide the user capsule, and stop the user from controlling it.
+            this._bottle.emptyBottle ();
+            this._capsule.properties.visible = false;
+            this._controllingCapsule = false;
         }
 
         /**
