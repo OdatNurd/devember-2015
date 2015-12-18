@@ -5348,8 +5348,7 @@ var nurdz;
                 if (this._bottle.virusCount == this._levelVirusCount) {
                     // Turn off the flag and then show the user capsule, we're ready to play.
                     this._generatingLevel = false;
-                    this._controllingCapsule = true;
-                    this._capsule.properties.visible = true;
+                    this.dropComplete();
                     return;
                 }
                 // Insert a virus into the bottle.
