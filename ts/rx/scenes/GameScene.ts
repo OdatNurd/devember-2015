@@ -410,19 +410,13 @@ module nurdz.game
                 // we are.
                 if (this._capsule.drop () == false)
                 {
-                    // First, apply the capsule to the bottle contents to put our segments actually into play.
-                    this._capsule.apply ();
-
-                    // Now make ourselves invisible and reset back to the top of the bottle; we also
-                    // select a new type.
+                    // Make the capsule invisible and stop the user from controlling it.
                     this._capsule.properties.visible = false;
-                    this._capsule.properties.type = Utils.randomIntInRange (0, 8);
-                    this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
-
-                    // The user can no longer control the capsule.
                     this._controllingCapsule = false;
 
-                    // Now trigger the bottle to see if this did anything.
+                    // Now apply the capsule to the bottle contents and trigger the bottle to see if this
+                    // formed a match or not.
+                    this._capsule.apply ();
                     this._bottle.trigger ();
                 }
             }
@@ -649,6 +643,26 @@ module nurdz.game
         {
             this._level++;
             this.startNewLevel (this._level);
+        }
+
+        /**
+         * The bottle invokes this whenever a match or drop completes but there are still viruses left in
+         * the bottle.
+         */
+        public dropComplete () : void
+        {
+            // Set the user capsule back to the top of the bottle and make sure that it's horizontal.
+            this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
+            this._capsule.properties.orientation = CapsuleOrientation.HORIZONTAL;
+
+            // Now select a new color set for it and make sure that its segments update to show its new
+            // position and colors.
+            this._capsule.properties.type = Utils.randomIntInRange (0, 8);
+            this._capsule.updateSegments ();
+
+            // Now we can tell it that it's visible and let the user control it again.
+            this._capsule.properties.visible = true;
+            this._controllingCapsule = true;
         }
 
         /**

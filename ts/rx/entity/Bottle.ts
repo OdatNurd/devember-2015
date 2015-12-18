@@ -392,7 +392,6 @@ module nurdz.game
                 this._dropping = didDrop;
                 this._dropTicks = tick;
             }
-
         }
 
         /**
@@ -841,6 +840,13 @@ module nurdz.game
                 this._dropping = false;
                 this._matching = true;
                 this._matchTicks = this._stage.tick;
+            }
+            else
+            {
+                // We were asked to find a match, but no matches are present. This could mean the end of a
+                // cascade or just a move that did nothing; either way, let the bottle know so it can
+                // continue.
+                this._scene.dropComplete ();
             }
         }
 

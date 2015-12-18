@@ -4537,6 +4537,12 @@ var nurdz;
                     this._matching = true;
                     this._matchTicks = this._stage.tick;
                 }
+                else {
+                    // We were asked to find a match, but no matches are present. This could mean the end of a
+                    // cascade or just a move that did nothing; either way, let the bottle know so it can
+                    // continue.
+                    this._scene.dropComplete();
+                }
             };
             /**
              * Given a position on the stage, this will determine if that position is inside the contents area
@@ -5099,16 +5105,12 @@ var nurdz;
                     // Try to drop the capsule. If this doesn't work, we can't move down any more from where
                     // we are.
                     if (this._capsule.drop() == false) {
-                        // First, apply the capsule to the bottle contents to put our segments actually into play.
-                        this._capsule.apply();
-                        // Now make ourselves invisible and reset back to the top of the bottle; we also
-                        // select a new type.
+                        // Make the capsule invisible and stop the user from controlling it.
                         this._capsule.properties.visible = false;
-                        this._capsule.properties.type = game.Utils.randomIntInRange(0, 8);
-                        this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
-                        // The user can no longer control the capsule.
                         this._controllingCapsule = false;
-                        // Now trigger the bottle to see if this did anything.
+                        // Now apply the capsule to the bottle contents and trigger the bottle to see if this
+                        // formed a match or not.
+                        this._capsule.apply();
                         this._bottle.trigger();
                     }
                 }
@@ -5294,6 +5296,22 @@ var nurdz;
             GameScene.prototype.bottleEmpty = function () {
                 this._level++;
                 this.startNewLevel(this._level);
+            };
+            /**
+             * The bottle invokes this whenever a match or drop completes but there are still viruses left in
+             * the bottle.
+             */
+            GameScene.prototype.dropComplete = function () {
+                // Set the user capsule back to the top of the bottle and make sure that it's horizontal.
+                this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
+                this._capsule.properties.orientation = game.CapsuleOrientation.HORIZONTAL;
+                // Now select a new color set for it and make sure that its segments update to show its new
+                // position and colors.
+                this._capsule.properties.type = game.Utils.randomIntInRange(0, 8);
+                this._capsule.updateSegments();
+                // Now we can tell it that it's visible and let the user control it again.
+                this._capsule.properties.visible = true;
+                this._controllingCapsule = true;
             };
             /**
              * This is called on a regular basis when a level is being generated to allow us to insert a new
