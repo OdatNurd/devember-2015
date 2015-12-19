@@ -108,7 +108,7 @@ module nurdz.game
          */
         LEFT,
         RIGHT,
-        DOWN,
+        DROP,
 
         /**
          * Capsule rotation keys.
@@ -470,9 +470,9 @@ module nurdz.game
          */
         private controlCapsule () : void
         {
-            if (this._keys[InputKey.DOWN])
+            if (this._keys[InputKey.DROP])
             {
-                this._keys[InputKey.DOWN] = false;
+                this._keys[InputKey.DROP] = false;
 
                 // Keep trying to drop the capsule until it says it can't drop any farther.
                 // noinspection StatementWithEmptyBodyJS
@@ -603,7 +603,7 @@ module nurdz.game
                     return true;
 
                 case KeyCodes.KEY_DOWN:
-                    this._keys[InputKey.DOWN] = pressed;
+                    this._keys[InputKey.DROP] = pressed;
                     return true;
 
                 case KeyCodes.KEY_Z:

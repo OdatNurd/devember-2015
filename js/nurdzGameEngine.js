@@ -4943,7 +4943,7 @@ var nurdz;
              */
             InputKey[InputKey["LEFT"] = 0] = "LEFT";
             InputKey[InputKey["RIGHT"] = 1] = "RIGHT";
-            InputKey[InputKey["DOWN"] = 2] = "DOWN";
+            InputKey[InputKey["DROP"] = 2] = "DROP";
             /**
              * Capsule rotation keys.
              */
@@ -5135,8 +5135,8 @@ var nurdz;
              * ahead and do it.
              */
             GameScene.prototype.controlCapsule = function () {
-                if (this._keys[InputKey.DOWN]) {
-                    this._keys[InputKey.DOWN] = false;
+                if (this._keys[InputKey.DROP]) {
+                    this._keys[InputKey.DROP] = false;
                     // Keep trying to drop the capsule until it says it can't drop any farther.
                     // noinspection StatementWithEmptyBodyJS
                     while (this._capsule.drop() == true)
@@ -5242,7 +5242,7 @@ var nurdz;
                         this._keys[InputKey.RIGHT] = pressed;
                         return true;
                     case game.KeyCodes.KEY_DOWN:
-                        this._keys[InputKey.DOWN] = pressed;
+                        this._keys[InputKey.DROP] = pressed;
                         return true;
                     case game.KeyCodes.KEY_Z:
                         this._keys[InputKey.ROTATE_LEFT] = pressed;
