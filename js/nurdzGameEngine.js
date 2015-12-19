@@ -4974,6 +4974,9 @@ var nurdz;
                 this._generatingLevel = false;
                 this._controllingCapsule = false;
                 this._gameOver = false;
+                // Default last drop tick time and drop speed.
+                this._lastDropTick = 0;
+                this._currentDropSpeed = 30;
                 // Create an array of segments that represent all of the possible segment types. We default
                 // the selected segment to be the virus.
                 //
@@ -5026,7 +5029,7 @@ var nurdz;
                 this.addActor(this._bottle);
                 this.addActor(this._capsule);
                 // Start a new level generating.
-                this.startNewLevel(5);
+                this.startNewLevel(120);
             }
             /**
              * Given a string of digits, return back a point where the X value indicates how many pixels wide
@@ -5095,8 +5098,37 @@ var nurdz;
                 }
                 // If we're allowed, see what the user wants to do with the capsule. We want to constrain
                 // movements to not happen too often.
-                if (this._controllingCapsule)
+                if (this._controllingCapsule) {
+                    // First, let te player try to manipulate the capsule. If we're about to drop the capsule,
+                    // this is their "last chance" to do something.
+                    //
+                    // This is important because the drop key will drop the capsule all the way and then rely
+                    // on the code below to handle it.
                     this.controlCapsule();
+                    // If enough time has passed, attempt to drop the capsule.
+                    if (tick >= this._lastDropTick + this._currentDropSpeed) {
+                        // Count this tick as the tick that the drop happened at.
+                        this._lastDropTick = tick;
+                        // Try to drop the capsule. If this doesn't work, we can't move down any more from where
+                        // we are.
+                        if (this._capsule.drop() == false) {
+                            // If the capsule is currently still outside the bottle, then the bottle is all filled
+                            // up, and so the game is now over.
+                            if (this._capsule.mapPosition.y < 0) {
+                                this.gameOver();
+                                return;
+                            }
+                            // Just a normal capsule drop; make the capsule invisible and stop the user from being
+                            // able to control it.
+                            this._capsule.properties.visible = false;
+                            this._controllingCapsule = false;
+                            // Now apply the capsule to the bottle contents and trigger the bottle to see if this
+                            // formed a match or not.
+                            this._capsule.apply();
+                            this._bottle.trigger();
+                        }
+                    }
+                }
             };
             /**
              * Check to see if the capsule is being moved by the player. If it is, and the move is allowed, go
@@ -5105,24 +5137,10 @@ var nurdz;
             GameScene.prototype.controlCapsule = function () {
                 if (this._keys[InputKey.DOWN]) {
                     this._keys[InputKey.DOWN] = false;
-                    // Try to drop the capsule. If this doesn't work, we can't move down any more from where
-                    // we are.
-                    if (this._capsule.drop() == false) {
-                        // If the capsule is currently still outside the bottle, then the bottle is all filled
-                        // up, and so the game is now over.
-                        if (this._capsule.mapPosition.y < 0) {
-                            this.gameOver();
-                            return;
-                        }
-                        // Just a normal capsule drop; make the capsule invisible and stop the user from being
-                        // able to control it.
-                        this._capsule.properties.visible = false;
-                        this._controllingCapsule = false;
-                        // Now apply the capsule to the bottle contents and trigger the bottle to see if this
-                        // formed a match or not.
-                        this._capsule.apply();
-                        this._bottle.trigger();
-                    }
+                    // Keep trying to drop the capsule until it says it can't drop any farther.
+                    // noinspection StatementWithEmptyBodyJS
+                    while (this._capsule.drop() == true)
+                        ;
                 }
                 else if (this._keys[InputKey.LEFT]) {
                     this._keys[InputKey.LEFT] = false;
@@ -5291,6 +5309,32 @@ var nurdz;
                 return (level + 1) * 4;
             };
             /**
+             * Given a level number in the game (which starts at 0) return back how many frame ticks should
+             * occur between drops.
+             *
+             * As implemented currently, this makes all of the drops on any level be a uniform speed. In the
+             * actual NES version of the game, this was a sliding scale; every 10 capsules the speed would
+             * increase a little bit, and there was also an initial "low/medium/high" for speed selection.
+             *
+             * In this crude prototype, we don't go to that trouble.
+             *
+             * @param level the level to check
+             * @returns {number} how many ticks should occur between natural drops.
+             */
+            GameScene.prototype.dropSpeedForLevel = function (level) {
+                var baseSpeedList = [30, 30, 30, 25, 25,
+                    25, 20, 20, 20, 15,
+                    15, 12, 12, 12, 12,
+                    12, 11, 11, 10, 8, 8];
+                // Make sure if the level is out of range, we constrain.
+                if (level < 0)
+                    return baseSpeedList[0];
+                if (level >= baseSpeedList.length)
+                    return baseSpeedList[baseSpeedList.length - 1];
+                // Return the index from the table
+                return baseSpeedList[level];
+            };
+            /**
              * Start a new level at the given level number. This will empty out the bottle and then set the
              * flag that gets us started on virus generation for the new level.
              *
@@ -5305,6 +5349,7 @@ var nurdz;
                 this._controllingCapsule = false;
                 // Set the level to generate and turn on our flag that says we are generating a new level.
                 this._level = level;
+                this._currentDropSpeed = this.dropSpeedForLevel(this._level);
                 this._levelVirusCount = this.virusesForLevel(this._level);
                 this._generatingLevel = true;
                 this._genTicks = this._stage.tick;
@@ -5345,6 +5390,9 @@ var nurdz;
                 // Now we can tell it that it's visible and let the user control it again.
                 this._capsule.properties.visible = true;
                 this._controllingCapsule = true;
+                // Reset the last time the capsule naturally dropped to right this second, so that there is a
+                // delay before the new one drops on its own.
+                this._lastDropTick = this._stage.tick;
             };
             /**
              * This is called on a regular basis when a level is being generated to allow us to insert a new
