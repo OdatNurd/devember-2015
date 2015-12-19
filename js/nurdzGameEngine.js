@@ -5095,7 +5095,7 @@ var nurdz;
                 }
                 // If we're allowed, see what the user wants to do with the capsule. We want to constrain
                 // movements to not happen too often.
-                if (this._controllingCapsule && tick % 3 == 0)
+                if (this._controllingCapsule)
                     this.controlCapsule();
             };
             /**
@@ -5104,6 +5104,7 @@ var nurdz;
              */
             GameScene.prototype.controlCapsule = function () {
                 if (this._keys[InputKey.DOWN]) {
+                    this._keys[InputKey.DOWN] = false;
                     // Try to drop the capsule. If this doesn't work, we can't move down any more from where
                     // we are.
                     if (this._capsule.drop() == false) {
@@ -5123,14 +5124,22 @@ var nurdz;
                         this._bottle.trigger();
                     }
                 }
-                else if (this._keys[InputKey.LEFT] && this._capsule.canSlide(true))
+                else if (this._keys[InputKey.LEFT]) {
+                    this._keys[InputKey.LEFT] = false;
                     this._capsule.slide(true);
-                else if (this._keys[InputKey.RIGHT] && this._capsule.canSlide(false))
+                }
+                else if (this._keys[InputKey.RIGHT]) {
+                    this._keys[InputKey.RIGHT] = false;
                     this._capsule.slide(false);
-                else if (this._keys[InputKey.ROTATE_LEFT] && this._capsule.canRotate(true))
+                }
+                else if (this._keys[InputKey.ROTATE_LEFT]) {
+                    this._keys[InputKey.ROTATE_LEFT] = false;
                     this._capsule.rotate(true);
-                else if (this._keys[InputKey.ROTATE_RIGHT] && this._capsule.canRotate(false))
+                }
+                else if (this._keys[InputKey.ROTATE_RIGHT]) {
+                    this._keys[InputKey.ROTATE_RIGHT] = false;
                     this._capsule.rotate(false);
+                }
             };
             /**
              * Checks to see if the position provided is inside one of the displayed segments to the left of
