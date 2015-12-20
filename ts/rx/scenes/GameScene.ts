@@ -55,7 +55,7 @@ module nurdz.game
      *
      * @type {number}
      */
-    const FONT_SCALE = TILE_SIZE / 2;
+    const FONT_SCALE = TILE_SIZE / 3;
 
     /**
      * An object which maps digits into polygons that can be rendered for a simple numeric display.
@@ -165,6 +165,17 @@ module nurdz.game
          * then jump it back to the top of the bottle to go again.
          */
         private _capsule : Capsule;
+
+        /**
+         * The score for the current game.
+         */
+        private _score : number;
+
+        /**
+         * The position on the stage to render the current score; this is calculated when the scene is
+         * constructed.
+         */
+        private _scoreTextPos : Point;
 
         /**
          * The level the game is currently at. This controls things like how fast the player capsule drops
@@ -284,6 +295,9 @@ module nurdz.game
             this._lastDropTick = 0;
             this._currentDropSpeed = 30;
 
+            // No score initially.
+            this._score = 0;
+
             // Create an array of segments that represent all of the possible segment types. We default
             // the selected segment to be the virus.
             //
@@ -302,7 +316,7 @@ module nurdz.game
 
             // Iterate the list of segments and set them to nice positions.
             for (let i = 0, x = TILE_SIZE / 2 ; i < this._segments.length ; i++, x += TILE_SIZE)
-                this._segments[i].setStagePositionXY (x, TILE_SIZE);
+                this._segments[i].setStagePositionXY (x, TILE_SIZE * 5);
 
             // Make the empty segment debug so that it renders visibly, and make the virus always use the
             // same polygon to start with.
@@ -323,19 +337,26 @@ module nurdz.game
             this._capsule = new Capsule (stage, this._bottle, Utils.randomIntInRange (0, 8));
             this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
 
-            // Calculate the size of the largest number of viruses that can appear (the number is not as
-            // important as the number of digits).
-            let textSize = this.numberStringSize ("99");
-
             // The level number text appears to the right of the bottle. We adjust down 1/2 a tile because
             // that aligns it with the top edge of the bottle, which is 1/2 a tile thick.
             this._levelTextPos = this._bottle.position.copyTranslatedXY (this._bottle.width, TILE_SIZE / 2);
+
+            // Calculate the size of the largest number of viruses that can appear (the number is not as
+            // important as the number of digits).
+            let textSize = this.numberStringSize ("99");
 
             // The virus text position appears to the bottom left of the bottle, adjusted up 1/2 a tile
             // because that aligns it with the bottom edge of the bottle, which is 1/2 a tile thick.
             this._virusTextPos = this._bottle.position.copyTranslatedXY (-textSize.x,
                                                                          this._bottle.height - textSize.y -
                                                                          (TILE_SIZE / 2));
+
+            // Now calculate the size of the largest score that can appear.
+            textSize = this.numberStringSize ("999999");
+
+            // The score position appears to the top left of the bottle, adjusted down 1/2 a tile because
+            // that aligns it with the top edge of the bottom, which is 1/2 a tile thick.
+            this._scoreTextPos = this._bottle.position.copyTranslatedXY (-textSize.x, (TILE_SIZE / 2));
 
             // Set up the key state. We assume that all keys are not pressed at startup.
             this._keys = [];
@@ -350,7 +371,7 @@ module nurdz.game
             this.addActor (this._capsule);
 
             // Start a new level generating.
-            this.startNewLevel (0);
+            this.startNewLevel (10);
         }
 
         /**
@@ -372,6 +393,9 @@ module nurdz.game
             // Draw the current level; this always happens so you know what level you bailed at.
             this.renderNumber (this._levelTextPos.x, this._levelTextPos.y,
                                'white', this._level + "");
+
+            // Draw the score. This also always happens.
+            this.renderNumber (this._scoreTextPos.x, this._scoreTextPos.y, 'white', this._score + "");
         }
 
         /**
@@ -810,9 +834,9 @@ module nurdz.game
          */
         public matchMade (virusesRemoved : number, cascadeLength : number) : void
         {
-            console.log ("We found a match");
-            console.log ("Viruses removed:", virusesRemoved);
-            console.log ("Cascade length: ", cascadeLength);
+            // Simplistically, allow for 200 points per virus matched. This is actually wrong, but that can
+            // be reworked next because we want to make it a little cooler anyway.
+            this._score += (virusesRemoved * 200);
         }
 
         /**

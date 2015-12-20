@@ -4922,7 +4922,7 @@ var nurdz;
          *
          * @type {number}
          */
-        var FONT_SCALE = game.TILE_SIZE / 2;
+        var FONT_SCALE = game.TILE_SIZE / 3;
         /**
          * An object which maps digits into polygons that can be rendered for a simple numeric display.
          * The polygon data assumes that the top left of all of the character cells is 0,0 and that each level
@@ -4998,6 +4998,8 @@ var nurdz;
                 // Default last drop tick time and drop speed.
                 this._lastDropTick = 0;
                 this._currentDropSpeed = 30;
+                // No score initially.
+                this._score = 0;
                 // Create an array of segments that represent all of the possible segment types. We default
                 // the selected segment to be the virus.
                 //
@@ -5015,7 +5017,7 @@ var nurdz;
                 ];
                 // Iterate the list of segments and set them to nice positions.
                 for (var i = 0, x = game.TILE_SIZE / 2; i < this._segments.length; i++, x += game.TILE_SIZE)
-                    this._segments[i].setStagePositionXY(x, game.TILE_SIZE);
+                    this._segments[i].setStagePositionXY(x, game.TILE_SIZE * 5);
                 // Make the empty segment debug so that it renders visibly, and make the virus always use the
                 // same polygon to start with.
                 this._segments[game.SegmentType.EMPTY].properties.debug = true;
@@ -5029,16 +5031,21 @@ var nurdz;
                 // appears to be inside the bottle opening.
                 this._capsule = new game.Capsule(stage, this._bottle, game.Utils.randomIntInRange(0, 8));
                 this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
-                // Calculate the size of the largest number of viruses that can appear (the number is not as
-                // important as the number of digits).
-                var textSize = this.numberStringSize("99");
                 // The level number text appears to the right of the bottle. We adjust down 1/2 a tile because
                 // that aligns it with the top edge of the bottle, which is 1/2 a tile thick.
                 this._levelTextPos = this._bottle.position.copyTranslatedXY(this._bottle.width, game.TILE_SIZE / 2);
+                // Calculate the size of the largest number of viruses that can appear (the number is not as
+                // important as the number of digits).
+                var textSize = this.numberStringSize("99");
                 // The virus text position appears to the bottom left of the bottle, adjusted up 1/2 a tile
                 // because that aligns it with the bottom edge of the bottle, which is 1/2 a tile thick.
                 this._virusTextPos = this._bottle.position.copyTranslatedXY(-textSize.x, this._bottle.height - textSize.y -
                     (game.TILE_SIZE / 2));
+                // Now calculate the size of the largest score that can appear.
+                textSize = this.numberStringSize("999999");
+                // The score position appears to the top left of the bottle, adjusted down 1/2 a tile because
+                // that aligns it with the top edge of the bottom, which is 1/2 a tile thick.
+                this._scoreTextPos = this._bottle.position.copyTranslatedXY(-textSize.x, (game.TILE_SIZE / 2));
                 // Set up the key state. We assume that all keys are not pressed at startup.
                 this._keys = [];
                 for (var i = 0; i < InputKey.KEY_COUNT; i++)
@@ -5050,7 +5057,7 @@ var nurdz;
                 this.addActor(this._bottle);
                 this.addActor(this._capsule);
                 // Start a new level generating.
-                this.startNewLevel(0);
+                this.startNewLevel(10);
             }
             /**
              * Given a string of digits, return back a point where the X value indicates how many pixels wide
@@ -5081,6 +5088,8 @@ var nurdz;
                     this.renderNumber(this._virusTextPos.x, this._virusTextPos.y, 'white', this._bottle.virusCount + "");
                 // Draw the current level; this always happens so you know what level you bailed at.
                 this.renderNumber(this._levelTextPos.x, this._levelTextPos.y, 'white', this._level + "");
+                // Draw the score. This also always happens.
+                this.renderNumber(this._scoreTextPos.x, this._scoreTextPos.y, 'white', this._score + "");
             };
             /**
              * Crudely render a number using our number font.
@@ -5435,9 +5444,9 @@ var nurdz;
              * is always 0 for the first match made after the initial capsule drop and then 1 for every match
              */
             GameScene.prototype.matchMade = function (virusesRemoved, cascadeLength) {
-                console.log("We found a match");
-                console.log("Viruses removed:", virusesRemoved);
-                console.log("Cascade length: ", cascadeLength);
+                // Simplistically, allow for 200 points per virus matched. This is actually wrong, but that can
+                // be reworked next because we want to make it a little cooler anyway.
+                this._score += (virusesRemoved * 200);
             };
             /**
              * This is called on a regular basis when a level is being generated to allow us to insert a new
