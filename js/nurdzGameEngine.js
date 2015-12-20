@@ -4175,6 +4175,11 @@ var nurdz;
              */
             Bottle.prototype.trigger = function (activator) {
                 if (activator === void 0) { activator = null; }
+                // Since we respond to triggers by checking for matches, which might cause a cascade, we first
+                // set the cascade length to -1 (because every loop through checkMatches() increments it.
+                //
+                // Once that is done, we can check for matches.
+                this._cascadeLength = -1;
                 this.checkForMatches();
             };
             /**
@@ -4342,6 +4347,9 @@ var nurdz;
              * to a MATCHED segment. This also takes care of transforming adjacent connected segments into the
              * appropriate type (e.g. if this is a LEFT, the RIGHT is turned into a SINGLE).
              *
+             * If the segment at the given location is a virus, we decrement the number of viruses in the
+             * bottle and increment the number of viruses found during the current match sequence.
+             *
              * @param x the X position to transform
              * @param y the Y position to transform
              */
@@ -4354,8 +4362,11 @@ var nurdz;
                 if (type == game.SegmentType.MATCHED)
                     return;
                 // If this segment is a virus, then decrement our virus count now because we are removing a virus.
-                if (segment.properties.type == game.SegmentType.VIRUS)
+                // We also need to increment the number of viruses found during this match.
+                if (segment.properties.type == game.SegmentType.VIRUS) {
                     this._virusCount--;
+                    this._virusMatchesFound++;
+                }
                 // Convert the segment to matched segment and then get the connected segment. This will return
                 // null if the connected segment is out of bounds or if this segment can't have a connection
                 // anyway.
@@ -4514,6 +4525,11 @@ var nurdz;
                 // This flag gets set to true if we find any matches this run and becomes our eventual return
                 // value.
                 var foundMatch = false;
+                // Reset the number of viruses that were removed as a part of this match to be 0, and
+                // increment the cascade length to count this as a potential cascade step (the length defaults
+                // to -1 on every operation.
+                this._virusMatchesFound = 0;
+                this._cascadeLength++;
                 // Check for matches first on the horizontal and then on the vertical.
                 //
                 // Every match found sets the flag to true so that we can return the affirmative if we found
@@ -4533,6 +4549,9 @@ var nurdz;
                 // the matches display for the proper amount of time before the update() method clears them
                 // away for us.
                 if (foundMatch) {
+                    // Signal the game scene about what happened, so that it can accumulate score and such.
+                    this._scene.matchMade(this._virusMatchesFound, this._cascadeLength);
+                    // Now pause dropping so we can display the matches.
                     this._dropping = false;
                     this._matching = true;
                     this._matchTicks = this._stage.tick;
@@ -4542,6 +4561,8 @@ var nurdz;
                     // cascade or just a move that did nothing; either way, let the bottle know so it can
                     // continue.
                     this._scene.dropComplete();
+                    // Reset the cascade length now.
+                    this._cascadeLength = -1;
                 }
             };
             /**
@@ -5398,6 +5419,25 @@ var nurdz;
                 // Reset the last time the capsule naturally dropped to right this second, so that there is a
                 // delay before the new one drops on its own.
                 this._lastDropTick = this._stage.tick;
+            };
+            /**
+             * The bottle invokes this whenever a match of any sort is made (but before it is removed from the
+             * screen; at the point of this callback the matched segments are still on display).
+             *
+             * We get told the number of viruses that were removed as a part of this match (which may be 0),
+             * as well as what part of the cascade chain this is.
+             *
+             * The chain starts at 0 for the first match made after a capsule is initially dropped by the player,
+             * then 1 for the match that happens when those segments are removed and fall down, and so on.
+             *
+             * @param virusesRemoved the number of viruses removed by this match (may be 0)
+             * @param cascadeLength the part of the cascade chain that this is (first is 0, then 1, etc). This
+             * is always 0 for the first match made after the initial capsule drop and then 1 for every match
+             */
+            GameScene.prototype.matchMade = function (virusesRemoved, cascadeLength) {
+                console.log("We found a match");
+                console.log("Viruses removed:", virusesRemoved);
+                console.log("Cascade length: ", cascadeLength);
             };
             /**
              * This is called on a regular basis when a level is being generated to allow us to insert a new

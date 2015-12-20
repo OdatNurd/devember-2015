@@ -154,6 +154,23 @@ module nurdz.game
         private _virusCount : number;
 
         /**
+         * When doing matches, this indicates the length of a cascade, in "match sequences"; the number of
+         * times during a single nonstop drop-match-drop-match sequence that a match was found after a drop.
+         *
+         * The initial match always has a cascade length of 0, when the drop of segments released during
+         * the match causes another match, that is cascade 1, and so on.
+         */
+        private _cascadeLength : number;
+
+        /**
+         * For every match check that causes a match, this is set to the number of viruses that were
+         * removed as a part of the match. This can be 0 if no viruses were actually removed, or it can be
+         * as high as 6, which based on the way we lay out the viruses is the maximum number of viruses
+         * that can be removed in one shot.
+         */
+        private _virusMatchesFound : number;
+
+        /**
          * The number of viruses that currently exist in the bottle.
          * @returns {number}
          */
@@ -404,6 +421,11 @@ module nurdz.game
          */
         trigger (activator : Actor = null) : void
         {
+            // Since we respond to triggers by checking for matches, which might cause a cascade, we first
+            // set the cascade length to -1 (because every loop through checkMatches() increments it.
+            //
+            // Once that is done, we can check for matches.
+            this._cascadeLength = -1;
             this.checkForMatches ();
         }
 
@@ -598,6 +620,9 @@ module nurdz.game
          * to a MATCHED segment. This also takes care of transforming adjacent connected segments into the
          * appropriate type (e.g. if this is a LEFT, the RIGHT is turned into a SINGLE).
          *
+         * If the segment at the given location is a virus, we decrement the number of viruses in the
+         * bottle and increment the number of viruses found during the current match sequence.
+         *
          * @param x the X position to transform
          * @param y the Y position to transform
          */
@@ -613,8 +638,12 @@ module nurdz.game
                 return;
 
             // If this segment is a virus, then decrement our virus count now because we are removing a virus.
+            // We also need to increment the number of viruses found during this match.
             if (segment.properties.type == SegmentType.VIRUS)
+            {
                 this._virusCount--;
+                this._virusMatchesFound++;
+            }
 
             // Convert the segment to matched segment and then get the connected segment. This will return
             // null if the connected segment is out of bounds or if this segment can't have a connection
@@ -813,6 +842,12 @@ module nurdz.game
             // value.
             let foundMatch = false;
 
+            // Reset the number of viruses that were removed as a part of this match to be 0, and
+            // increment the cascade length to count this as a potential cascade step (the length defaults
+            // to -1 on every operation.
+            this._virusMatchesFound = 0;
+            this._cascadeLength++;
+
             // Check for matches first on the horizontal and then on the vertical.
             //
             // Every match found sets the flag to true so that we can return the affirmative if we found
@@ -837,6 +872,10 @@ module nurdz.game
             // away for us.
             if (foundMatch)
             {
+                // Signal the game scene about what happened, so that it can accumulate score and such.
+                this._scene.matchMade (this._virusMatchesFound, this._cascadeLength);
+
+                // Now pause dropping so we can display the matches.
                 this._dropping = false;
                 this._matching = true;
                 this._matchTicks = this._stage.tick;
@@ -847,6 +886,9 @@ module nurdz.game
                 // cascade or just a move that did nothing; either way, let the bottle know so it can
                 // continue.
                 this._scene.dropComplete ();
+
+                // Reset the cascade length now.
+                this._cascadeLength = -1;
             }
         }
 

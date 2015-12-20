@@ -795,6 +795,27 @@ module nurdz.game
         }
 
         /**
+         * The bottle invokes this whenever a match of any sort is made (but before it is removed from the
+         * screen; at the point of this callback the matched segments are still on display).
+         *
+         * We get told the number of viruses that were removed as a part of this match (which may be 0),
+         * as well as what part of the cascade chain this is.
+         *
+         * The chain starts at 0 for the first match made after a capsule is initially dropped by the player,
+         * then 1 for the match that happens when those segments are removed and fall down, and so on.
+         *
+         * @param virusesRemoved the number of viruses removed by this match (may be 0)
+         * @param cascadeLength the part of the cascade chain that this is (first is 0, then 1, etc). This
+         * is always 0 for the first match made after the initial capsule drop and then 1 for every match
+         */
+        public matchMade (virusesRemoved : number, cascadeLength : number) : void
+        {
+            console.log ("We found a match");
+            console.log ("Viruses removed:", virusesRemoved);
+            console.log ("Cascade length: ", cascadeLength);
+        }
+
+        /**
          * This is called on a regular basis when a level is being generated to allow us to insert a new
          * virus into the bottle at the start of a level.
          *
