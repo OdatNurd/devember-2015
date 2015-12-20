@@ -5029,7 +5029,7 @@ var nurdz;
                 this.addActor(this._bottle);
                 this.addActor(this._capsule);
                 // Start a new level generating.
-                this.startNewLevel(120);
+                this.startNewLevel(0);
             }
             /**
              * Given a string of digits, return back a point where the X value indicates how many pixels wide
@@ -5137,10 +5137,15 @@ var nurdz;
             GameScene.prototype.controlCapsule = function () {
                 if (this._keys[InputKey.DROP]) {
                     this._keys[InputKey.DROP] = false;
-                    // Keep trying to drop the capsule until it says it can't drop any farther.
-                    // noinspection StatementWithEmptyBodyJS
-                    while (this._capsule.drop() == true)
-                        ;
+                    // Force a drop now. If this fails, then the capsule has reached the bottom, and so we
+                    // should set the time of the last drop tick to be far enough in the past that the next
+                    // forced drop will happen right away, notice, and handle this.
+                    //
+                    // This is a huge lazy hack so that the code that handles a drop being complete doesn't
+                    // have to be refactored. Although I guess I could have done it in less time than it took
+                    // to write this comment. Oh well.
+                    if (this._capsule.drop() == false)
+                        this._lastDropTick = this._stage.tick - this._currentDropSpeed;
                 }
                 else if (this._keys[InputKey.LEFT]) {
                     this._keys[InputKey.LEFT] = false;
