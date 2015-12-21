@@ -4874,6 +4874,108 @@ var nurdz;
     var game;
     (function (game) {
         /**
+         * The font that we use to render our text. If you update this, update the size in FONT_SIZE too.
+         *
+         * @type {string}
+         */
+        var FONT = "32px monospace";
+        /**
+         * An entity that represents simple floating text. It renders centered on its location and slowly
+         * rises before vanishing.
+         */
+        var FloatingText = (function (_super) {
+            __extends(FloatingText, _super);
+            /**
+             * Construct a new instance of floating text with an initial position and text. This can be
+             * changed at any point to different text as needed.
+             *
+             * Instances of this class are created hidden and float upwards with a set speed and vanish after
+             * a certain time; They also render centered on their location.
+             *
+             * When the visibility property is set to true, the position slowly floats upward at a set speed;
+             * when false, no updates happen.
+             *
+             * @param stage the stage that manages us
+             * @param x the initial X position of the text
+             * @param y the initial Y position of the text
+             * @param text the text to display
+             */
+            function FloatingText(stage, x, y, text) {
+                _super.call(this, "Floaty", stage, x, y, 1, 1, 10, {}, {
+                    visible: false,
+                    life: 30,
+                    speed: 2
+                }, 'magenta');
+                // Set our text.
+                this._text = text;
+            }
+            Object.defineProperty(FloatingText.prototype, "properties", {
+                get: function () { return this._properties; },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(FloatingText.prototype, "text", {
+                /**
+                 * Set the text that we display when we render ourselves.
+                 *
+                 * @param newText
+                 */
+                set: function (newText) { this._text = newText; },
+                enumerable: true,
+                configurable: true
+            });
+            /**
+             * Update the state of the text; this will only do something while the text is visible, and after
+             * a set time it will make itself invisible.
+             *
+             * @param stage the stage that owns us
+             * @param tick the current game tick
+             */
+            FloatingText.prototype.update = function (stage, tick) {
+                // If our life is greater than 0, then decrement it. When it hits 0, we make ourselves invisible.
+                if (this._properties.life > 0) {
+                    this._properties.life--;
+                    if (this._properties.life == 0)
+                        this._properties.visible = false;
+                }
+                // If we're not visible, leave.
+                if (this._properties.visible == false)
+                    return;
+                // Shift our position upwards by the speed.
+                this._position.translateXY(0, -this._properties.speed);
+            };
+            /**
+             * Render ourselves, if we are currently visible. This renders the text centered horizontally and
+             * vertically on the stage at the position given.
+             *
+             * @param x the X position to render at
+             * @param y the Y position to render at
+             * @param renderer the renderer to render ourselves with
+             */
+            FloatingText.prototype.render = function (x, y, renderer) {
+                // If we're not visible, leave.
+                if (this._properties.visible == false)
+                    return;
+                // Translate the origin to the position we want to render to
+                renderer.translateAndRotate(x, y);
+                // Set the font and indicate that the text should be centered in both directions.
+                renderer.context.font = FONT;
+                renderer.context.textAlign = "center";
+                renderer.context.textBaseline = "middle";
+                // Draw the text and restore the context.
+                renderer.drawTxt(this._text, 0, 0, 'green');
+                renderer.restore();
+            };
+            return FloatingText;
+        })(game.Entity);
+        game.FloatingText = FloatingText;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
+    var game;
+    (function (game) {
+        /**
          * The width of the pill bottle, in pills (tiles).
          *
          * @type {number}

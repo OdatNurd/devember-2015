@@ -28,6 +28,7 @@
         "rx/entity/Capsule.ts",
         "rx/entity/Bottle.ts",
         "rx/entity/Pointer.ts",
+        "rx/entity/FloatingText.ts",
         "rx/scenes/GameScene.ts",
         "main.ts"
     ]
