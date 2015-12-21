@@ -5132,6 +5132,8 @@ var nurdz;
                 this._currentDropSpeed = 30;
                 // No score initially.
                 this._score = 0;
+                // Start the text list empty.
+                this._textList = [];
                 // Create an array of segments that represent all of the possible segment types. We default
                 // the selected segment to be the virus.
                 //
@@ -5530,6 +5532,46 @@ var nurdz;
                 this._controllingCapsule = false;
             };
             /**
+             * Get or create a floating text object and configure it for displaying the score value provided
+             * with the given initial position.
+             *
+             * The returned object is fully configured with defaults, so further customization can be done but
+             * is not needed.
+             *
+             * This draws from a pool of created objects and creates new ones as needed.
+             *
+             * @param score the score value to display
+             * @param position the position to draw the text at initially
+             * @returns {FloatingText} the configured text object
+             */
+            GameScene.prototype.textObjectForScore = function (score, position) {
+                var textObj = null;
+                // Scan over the list of text objects trying to find one that is not currently visible, so
+                // that we can reuse it.
+                for (var i = 0; i < this._textList.length; i++) {
+                    if (this._textList[i].properties.visible == false) {
+                        textObj = this._textList[i];
+                        break;
+                    }
+                }
+                // If we didn't find one, we need to create one.
+                if (textObj == null) {
+                    // Create it, then add it to the stage and to the array.
+                    textObj = new game.FloatingText(this._stage, 0, 0, "");
+                    this.addActor(textObj);
+                    this._textList.push(textObj);
+                }
+                // Set the text and position of the object.
+                textObj.text = score + "";
+                textObj.position.setTo(position);
+                // Now give it a life, a speed, and make it visible.
+                textObj.properties.speed = game.Utils.randomIntInRange(1, 3);
+                textObj.properties.life = game.Utils.randomIntInRange(25, 35);
+                textObj.properties.visible = true;
+                // Return it now.
+                return textObj;
+            };
+            /**
              * The bottle invokes this whenever a match completes that removes the last of the viruses from
              * the bottle. This is our signal that it is time to start a new level.
              */
@@ -5573,9 +5615,27 @@ var nurdz;
              * match happened.
              */
             GameScene.prototype.matchMade = function (virusesRemoved, cascadeLength, matchPoint) {
-                // Simplistically, allow for 200 points per virus matched. This is actually wrong, but that can
-                // be reworked next because we want to make it a little cooler anyway.
-                this._score += (virusesRemoved * 200);
+                var PER_VIRUS_SCORE = 200;
+                var CASCADE_MULTIPLIER_BONUS = [1, 2, 2.5, 3];
+                // Constrain the cascade length to the maximum allowable bonus.
+                if (cascadeLength >= CASCADE_MULTIPLIER_BONUS.length)
+                    cascadeLength = CASCADE_MULTIPLIER_BONUS.length - 1;
+                // The score awarded for this match. There is a score awarded per virus clobbered in a single
+                // match, but multiples are worth more. In particular, the first virus is worth PER_VIRUS_SCORE,
+                // and the second one is worth twice that PLUS the value for the first one.
+                var scoreThisMatch = 0;
+                while (virusesRemoved > 0) {
+                    scoreThisMatch += (virusesRemoved * PER_VIRUS_SCORE);
+                    virusesRemoved--;
+                }
+                // Now, based on the cascade length, multiply the score for this match.
+                scoreThisMatch *= CASCADE_MULTIPLIER_BONUS[cascadeLength];
+                // If there was a score increase, update our score variable and then display how much this
+                // match was for.
+                if (scoreThisMatch > 0) {
+                    this._score += scoreThisMatch;
+                    this.textObjectForScore(scoreThisMatch, matchPoint);
+                }
             };
             /**
              * This is called on a regular basis when a level is being generated to allow us to insert a new
