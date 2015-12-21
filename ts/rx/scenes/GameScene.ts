@@ -234,6 +234,12 @@ module nurdz.game
         private _currentDropSpeed : number;
 
         /**
+         * Code can set this flag to indicate that the update loop should try to drop right now, even if
+         * it's not time yet.
+         */
+        private _forceDrop : boolean;
+
+        /**
          * The tick count as of the last time a virus was inserted into the bottle. We use this to slow
          * down the virus insertion
          */
@@ -292,6 +298,7 @@ module nurdz.game
             this._gameOver = false;
 
             // Default last drop tick time and drop speed.
+            this._forceDrop = false;
             this._lastDropTick = 0;
             this._currentDropSpeed = 30;
 
@@ -456,8 +463,11 @@ module nurdz.game
                 this.controlCapsule ();
 
                 // If enough time has passed, attempt to drop the capsule.
-                if (tick >= this._lastDropTick + this._currentDropSpeed)
+                if (tick >= this._lastDropTick + this._currentDropSpeed || this._forceDrop)
                 {
+                    // Make sure the force drop flag is no longer set.
+                    this._forceDrop = false;
+
                     // Count this tick as the tick that the drop happened at.
                     this._lastDropTick = tick;
 
@@ -498,15 +508,8 @@ module nurdz.game
             {
                 this._keys[InputKey.DROP] = false;
 
-                // Force a drop now. If this fails, then the capsule has reached the bottom, and so we
-                // should set the time of the last drop tick to be far enough in the past that the next
-                // forced drop will happen right away, notice, and handle this.
-                //
-                // This is a huge lazy hack so that the code that handles a drop being complete doesn't
-                // have to be refactored. Although I guess I could have done it in less time than it took
-                // to write this comment. Oh well.
-                if (this._capsule.drop () == false)
-                    this._lastDropTick = this._stage.tick - this._currentDropSpeed;
+                // Tell the update loop to force a drop.
+                this._forceDrop = true;
             }
             else if (this._keys[InputKey.LEFT])
             {
