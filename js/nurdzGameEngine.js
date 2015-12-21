@@ -3243,7 +3243,8 @@ var nurdz;
                 // Here we set the type and color parameters directly into our properties.
                 _super.call(this, "Segment", stage, 1, 1, game.TILE_SIZE, game.TILE_SIZE, 1, {
                     type: type,
-                    color: color
+                    color: color,
+                    visible: true
                 }, {}, '#666666');
                 // If this is a virus, we need to set the polygon too.
                 if (type == SegmentType.VIRUS)
@@ -3400,6 +3401,9 @@ var nurdz;
              */
             Segment.prototype.render = function (x, y, renderer, translucent) {
                 if (translucent === void 0) { translucent = false; }
+                // Leave if we're not visible.
+                if (this._properties.visible == false)
+                    return;
                 // If we're debugging, invoke the super, which will render a background for us at our dimensions,
                 // which we can use for debugging purposes to ensure that we're drawing correctly.
                 if (this._properties.debug)
@@ -4847,7 +4851,9 @@ var nurdz;
              * @param y the Y location of the pointer`
              */
             function Pointer(stage, x, y) {
-                _super.call(this, "Cursor", stage, x, y, game.TILE_SIZE, game.TILE_SIZE, 1, {});
+                _super.call(this, "Cursor", stage, x, y, game.TILE_SIZE, game.TILE_SIZE, 1, {
+                    visible: true
+                });
                 /**
                  * The index into the color list that indicates what color to render ourselves.
                  *
@@ -4867,6 +4873,11 @@ var nurdz;
                  */
                 this._poly = [[4, 4], [game.TILE_SIZE - 4, 4], [game.TILE_SIZE / 2, game.TILE_SIZE - 4]];
             }
+            Object.defineProperty(Pointer.prototype, "properties", {
+                get: function () { return this._properties; },
+                enumerable: true,
+                configurable: true
+            });
             /**
              * Called every frame to update ourselves. This causes our color to change.
              *
@@ -4888,10 +4899,11 @@ var nurdz;
              * @param renderer the renderer to use to draw ourselves
              */
             Pointer.prototype.render = function (x, y, renderer) {
-                renderer.translateAndRotate(x, y, null);
-                renderer.fillPolygon(this._poly, this._colors[this._colorIndex]);
-                //renderer.fillPolygon (this._poly, 'white');
-                renderer.restore();
+                if (this._properties.visible) {
+                    renderer.translateAndRotate(x, y, null);
+                    renderer.fillPolygon(this._poly, this._colors[this._colorIndex]);
+                    renderer.restore();
+                }
             };
             return Pointer;
         })(game.Entity);
@@ -5149,15 +5161,19 @@ var nurdz;
                     new game.Segment(stage, game.SegmentType.TOP, game.SegmentColor.BLUE),
                     new game.Segment(stage, game.SegmentType.BOTTOM, game.SegmentColor.BLUE),
                 ];
-                // Iterate the list of segments and set them to nice positions.
-                for (var i = 0, x = game.TILE_SIZE / 2; i < this._segments.length; i++, x += game.TILE_SIZE)
+                // Iterate the list of segments and set them to nice positions and also make them invisible.
+                for (var i = 0, x = game.TILE_SIZE / 2; i < this._segments.length; i++, x += game.TILE_SIZE) {
                     this._segments[i].setStagePositionXY(x, game.TILE_SIZE * 5);
+                    this._segments[i].properties.visible = false;
+                }
                 // Make the empty segment debug so that it renders visibly, and make the virus always use the
                 // same polygon to start with.
                 this._segments[game.SegmentType.EMPTY].properties.debug = true;
                 this._segments[game.SegmentType.VIRUS].virusPolygon = 2;
-                // Create our pointer pointing to the selected segment in the segment list.
+                // Create our pointer pointing to the selected segment in the segment list. We also want it to
+                // be invisible by default
                 this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
+                this._pointer.properties.visible = false;
                 // Create the bottle that will hold te game board and its contents.
                 this._bottle = new game.Bottle(stage, this, '#cccccc');
                 // Create the capsule that the player controls and set its position to be at the column where
@@ -5364,6 +5380,10 @@ var nurdz;
              * @param eventObj the mouse click event
              */
             GameScene.prototype.inputMouseClick = function (eventObj) {
+                // If the pointer is not visible, debug mode is not enabled, so clicks do nothing, so ignore
+                // the event.
+                if (this._pointer.properties.visible == false)
+                    return false;
                 // Get the position of the mouse on the stage where the click happened.
                 var mousePosition = this._stage.calculateMousePos(eventObj);
                 // Get the segment at the position where the mouse was clicked. It's null if the click didn't
@@ -5419,6 +5439,22 @@ var nurdz;
                 return false;
             };
             /**
+             * Toggle debug state for the game. This makes various controls visible or not visible, which also
+             * controls.
+             */
+            GameScene.prototype.toggleDebugState = function () {
+                // Toggle the visibility of the pointer and all segments.
+                this._pointer.properties.visible = !this._pointer.properties.visible;
+                for (var i = 0; i < this._segments.length; i++)
+                    this._segments[i].properties.visible = !this._segments[i].properties.visible;
+                // If we are in debug mode, set the drop rate to an insane value to halt things; otherwise,
+                // set it to the appropriate value.
+                if (this._pointer.properties.visible)
+                    this._currentDropSpeed = 99999;
+                else
+                    this._currentDropSpeed = this.dropSpeedForLevel(this._level);
+            };
+            /**
              * This triggers when a keyboard key is released.
              *
              * @param eventObj the event that represents the key released
@@ -5441,6 +5477,10 @@ var nurdz;
                     return true;
                 // Check other keys
                 switch (eventObj.keyCode) {
+                    // F1 toggles debug mode on and off.
+                    case game.KeyCodes.KEY_F1:
+                        this.toggleDebugState();
+                        return true;
                     // F5 takes a screenshot.
                     case game.KeyCodes.KEY_F5:
                         this.screenshot("rx", "Rx Clone Screenshot");

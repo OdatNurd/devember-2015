@@ -256,6 +256,12 @@ module nurdz.game
          * with extra debugging information.
          */
         debug? : boolean;
+
+        /**
+         * When true, we render ourselves when asked; otherwise we silently ignore render calls.
+         */
+        visible? : boolean;
+
     }
 
     /**
@@ -382,7 +388,8 @@ module nurdz.game
             // Here we set the type and color parameters directly into our properties.
             super ("Segment", stage, 1, 1, TILE_SIZE, TILE_SIZE, 1, <SegmentProperties> {
                 type:  type,
-                color: color
+                color: color,
+                visible: true
             }, {}, '#666666');
 
             // If this is a virus, we need to set the polygon too.
@@ -477,6 +484,10 @@ module nurdz.game
          */
         render (x : number, y : number, renderer : CanvasRenderer, translucent : boolean = false) : void
         {
+            // Leave if we're not visible.
+            if (this._properties.visible == false)
+                return;
+
             // If we're debugging, invoke the super, which will render a background for us at our dimensions,
             // which we can use for debugging purposes to ensure that we're drawing correctly.
             if (this._properties.debug)

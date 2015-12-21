@@ -331,19 +331,24 @@ module nurdz.game
                 new Segment (stage, SegmentType.BOTTOM, SegmentColor.BLUE),
             ];
 
-            // Iterate the list of segments and set them to nice positions.
+            // Iterate the list of segments and set them to nice positions and also make them invisible.
             for (let i = 0, x = TILE_SIZE / 2 ; i < this._segments.length ; i++, x += TILE_SIZE)
+            {
                 this._segments[i].setStagePositionXY (x, TILE_SIZE * 5);
+                this._segments[i].properties.visible = false;
+            }
 
             // Make the empty segment debug so that it renders visibly, and make the virus always use the
             // same polygon to start with.
             this._segments[SegmentType.EMPTY].properties.debug = true;
             this._segments[SegmentType.VIRUS].virusPolygon = 2;
 
-            // Create our pointer pointing to the selected segment in the segment list.
+            // Create our pointer pointing to the selected segment in the segment list. We also want it to
+            // be invisible by default
             this._pointer = new Pointer (stage,
                 this._segments[this._segmentIndex].position.x,
                 this._segments[this._segmentIndex].position.y - TILE_SIZE);
+            this._pointer.properties.visible = false;
 
             // Create the bottle that will hold te game board and its contents.
             this._bottle = new Bottle (stage, this, '#cccccc');
@@ -592,6 +597,11 @@ module nurdz.game
          */
         inputMouseClick (eventObj : MouseEvent) : boolean
         {
+            // If the pointer is not visible, debug mode is not enabled, so clicks do nothing, so ignore
+            // the event.
+            if (this._pointer.properties.visible == false)
+                return false;
+
             // Get the position of the mouse on the stage where the click happened.
             var mousePosition = this._stage.calculateMousePos (eventObj);
 
@@ -662,6 +672,25 @@ module nurdz.game
         }
 
         /**
+         * Toggle debug state for the game. This makes various controls visible or not visible, which also
+         * controls.
+         */
+        private toggleDebugState () : void
+        {
+            // Toggle the visibility of the pointer and all segments.
+            this._pointer.properties.visible =  !this._pointer.properties.visible;
+            for (let i = 0 ; i < this._segments.length ; i++)
+                this._segments[i].properties.visible = !this._segments[i].properties.visible;
+
+            // If we are in debug mode, set the drop rate to an insane value to halt things; otherwise,
+            // set it to the appropriate value.
+            if (this._pointer.properties.visible)
+                this._currentDropSpeed = 99999;
+            else
+                this._currentDropSpeed = this.dropSpeedForLevel (this._level);
+        }
+
+        /**
          * This triggers when a keyboard key is released.
          *
          * @param eventObj the event that represents the key released
@@ -689,6 +718,11 @@ module nurdz.game
             // Check other keys
             switch (eventObj.keyCode)
             {
+                // F1 toggles debug mode on and off.
+                case KeyCodes.KEY_F1:
+                    this.toggleDebugState ();
+                    return true;
+
                 // F5 takes a screenshot.
                 case KeyCodes.KEY_F5:
                     this.screenshot ("rx", "Rx Clone Screenshot");

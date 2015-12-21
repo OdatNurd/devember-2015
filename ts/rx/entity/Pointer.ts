@@ -1,11 +1,30 @@
 module nurdz.game
 {
     /**
+     * The properties that a capsule can have.
+     */
+    interface PointerProperties extends EntityProperties
+    {
+        /**
+         * When true, we render ourselves when asked; otherwise we silently ignore render calls.
+         */
+        visible? : boolean;
+    }
+
+    /**
      * This entity represents a simplistic pointer, which is just a tile sized entity that appears to
      * slowly flash and points downwards. It's used for our debug logic.
      */
     export class Pointer extends Entity
     {
+        /**
+         * Redeclare our pointer properties so that it is of the correct type. This is allowed because the
+         * member is protected.
+         */
+        protected _properties : PointerProperties;
+        get properties () : PointerProperties
+        { return this._properties; }
+
         /**
          * The index into the color list that indicates what color to render ourselves.
          *
@@ -36,7 +55,9 @@ module nurdz.game
          */
         constructor (stage : Stage, x : number, y : number)
         {
-            super ("Cursor", stage, x, y, TILE_SIZE, TILE_SIZE, 1, {});
+            super ("Cursor", stage, x, y, TILE_SIZE, TILE_SIZE, 1, <PointerProperties> {
+                visible: true
+            });
         }
 
         /**
@@ -64,10 +85,12 @@ module nurdz.game
          */
         render (x : number, y : number, renderer : Renderer) : void
         {
-            renderer.translateAndRotate (x, y, null);
-            renderer.fillPolygon (this._poly, this._colors[this._colorIndex]);
-            //renderer.fillPolygon (this._poly, 'white');
-            renderer.restore ();
+            if (this._properties.visible)
+            {
+                renderer.translateAndRotate (x, y, null);
+                renderer.fillPolygon (this._poly, this._colors[this._colorIndex]);
+                renderer.restore ();
+            }
         }
     }
 }
