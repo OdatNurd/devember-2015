@@ -4406,17 +4406,27 @@ var nurdz;
              * @param y the Y location of the start of the match
              * @param matchLength the length of the match in capsules
              * @param horizontal true if the match is horizontal, false if the match is vertical.
+             * @returns {Point} the center point of the matched segments, in stage space
              */
             Bottle.prototype.markMatch = function (x, y, matchLength, horizontal) {
                 // The number of segments we have marked so far
                 var marked = 0;
+                // Create a point that is the center of the rectangle that encompasses the segments that make
+                // up the match. This is the top left of the current segment, converted to screen space.
+                var matchPoint = new game.Point(x, y)
+                    .scale(game.TILE_SIZE)
+                    .translate(this._position)
+                    .translate(this._contentOffset);
+                // Now translate to the center. Depending on the orientation of the match, one direction is
+                // half a tile and the other half is half of the match length converted to tiles.
+                matchPoint.translateXY(horizontal ? ((matchLength * game.TILE_SIZE) / 2) : (game.TILE_SIZE / 2), horizontal ? (game.TILE_SIZE / 2) : ((matchLength * game.TILE_SIZE) / 2));
                 // Keep looping until we have fixed as many things as we were told to mark.
                 while (marked != matchLength) {
                     // If the X or Y is out of bounds, then just leave. This protects us against doing
                     // something quite stupid somewhere.
                     if (x < 0 || y < 0 || x >= BOTTLE_WIDTH || y >= BOTTLE_HEIGHT) {
                         console.log("markMatchSegments() passed invalid match to mark");
-                        return;
+                        return matchPoint;
                     }
                     // Mark the item at the current position.
                     this.markSegment(x, y);
@@ -4427,17 +4437,45 @@ var nurdz;
                     else
                         y++;
                 }
+                // Return the center of the match
+                return matchPoint;
+            };
+            /**
+             * Calculate the centroid of the two points passed in IN PLACE by MODIFYING point1. The center of
+             * the two points is calculated and stored into point1, which is returned.
+             *
+             * Either or both points may be null. If  point2 is null, point1 is returned, if point1 is null,
+             * either a copy of point2 or null is returned, depending on point2, or point1 is modified to be
+             * the average of the two points and is also returned.
+             *
+             * @param point1 the first point to get the center of (the result is stored here)
+             * @param point2 the second point to get the center of
+             * @returns {Point} point1 after it has been modified to include the proper center of the two points,
+             * or a copy of point2 if point1 is null, or null if point1 and point2 are also null.
+             */
+            Bottle.prototype.calculateCentroid = function (point1, point2) {
+                // If there is no second point, just return the first point.
+                if (point2 == null)
+                    return point1;
+                // If there is no first point, just return a copy of the second point if possible.
+                if (point1 == null)
+                    return point2 != null ? point2.copy() : null;
+                // There are two points. Translate the first point by the second point to add them together,
+                // then reduce it by half and return it, in order to calculate the average.
+                point1.translate(point2);
+                point1.scale(0.5);
+                return point1;
             };
             /**
              * Scan the row of the bottle provided to see if there are any matches. For any matches of an
              * appropriate length, the matching segments are turned into a MATCHED segment.
              *
              * @param y the row in the bottle contents to check for matches
-             * @returns {boolean} true if at least one match was found, false otherwise
+             * @returns {Point} the center point of the match or matches found, or null otherwise
              */
             Bottle.prototype.checkRowMatch = function (y) {
-                // This gets set to true every time we find a match in this row.
-                var foundMatch = false;
+                // The center of the match or matches found, or null if no matches.
+                var matchPoint = null;
                 // Scan from left to right. We keep searching until we exceed the position on the right where
                 // we know no more matches can be found because there are not enough positions left.
                 var x = 0;
@@ -4456,28 +4494,27 @@ var nurdz;
                     while (segment.matches(this.segmentAtXY(searchX, y)))
                         searchX++;
                     // Calculate how long the match is. If it's long enough, then we need to mark the match
-                    // for all of those segments and then set the flag that says that we found a match.
+                    // for all of those segments and then calculate the center of the match.
                     var matchLength = searchX - x;
                     if (matchLength >= MATCH_LENGTH) {
-                        this.markMatch(x, y, matchLength, true);
-                        foundMatch = true;
+                        matchPoint = this.calculateCentroid(matchPoint, this.markMatch(x, y, matchLength, true));
                     }
                     // Restart the search now. Since we stopped at the first thing that was not a match with
                     // where we started, we start the next search from there.
                     x = searchX;
                 }
-                return foundMatch;
+                return matchPoint;
             };
             /**
              * Scan the column of the bottle provided to see if there are any matches. For any matches of an
              * appropriate length, the matching segments are turned into a MATCHED segment.
              *
              * @param x the column in the bottle contents to check for matches
-             * @returns {boolean} true if at least one match was found, false otherwise
+             * @returns {Point} the center point of the match or matches found, or null otherwise
              */
             Bottle.prototype.checkColumnMatch = function (x) {
-                // This gets set to true every time we find a match in this row.
-                var foundMatch = false;
+                // The center of the match or matches found, or null if no matches.
+                var matchPoint = null;
                 // Scan from left to right. We keep searching until we exceed the position on the right where
                 // we know no more matches can be found because there are not enough positions left.
                 var y = 0;
@@ -4499,14 +4536,13 @@ var nurdz;
                     // for all of those segments and then set the flag that says that we found a match.
                     var matchLength = searchY - y;
                     if (matchLength >= MATCH_LENGTH) {
-                        this.markMatch(x, y, matchLength, false);
-                        foundMatch = true;
+                        matchPoint = this.calculateCentroid(matchPoint, this.markMatch(x, y, matchLength, false));
                     }
                     // Restart the search now. Since we stopped at the first thing that was not a match with
                     // where we started, we start the next search from there.
                     y = searchY;
                 }
-                return foundMatch;
+                return matchPoint;
             };
             /**
              * Perform a scan to see if there are any matches currently existing in the bottle contents. A
@@ -4522,9 +4558,8 @@ var nurdz;
              * that no segments drop while the matches are being displayed.
              */
             Bottle.prototype.checkForMatches = function () {
-                // This flag gets set to true if we find any matches this run and becomes our eventual return
-                // value.
-                var foundMatch = false;
+                // The center of the match or matches found, or null if no matches.
+                var matchPoint = null;
                 // Reset the number of viruses that were removed as a part of this match to be 0, and
                 // increment the cascade length to count this as a potential cascade step (the length defaults
                 // to -1 on every operation.
@@ -4532,25 +4567,19 @@ var nurdz;
                 this._cascadeLength++;
                 // Check for matches first on the horizontal and then on the vertical.
                 //
-                // Every match found sets the flag to true so that we can return the affirmative if we found
-                // any matches. The matching functions also take care of marking the matched segments and
-                // splitting apart any partially matched capsules.
-                for (var y = 0; y < BOTTLE_HEIGHT; y++) {
-                    if (this.checkRowMatch(y))
-                        foundMatch = true;
-                }
+                // Every match found (if any) calculates the rolling center point of all found matches.
+                for (var y = 0; y < BOTTLE_HEIGHT; y++)
+                    matchPoint = this.calculateCentroid(matchPoint, this.checkRowMatch(y));
                 // Now do the same thing with columns.
-                for (var x = 0; x < BOTTLE_WIDTH; x++) {
-                    if (this.checkColumnMatch(x))
-                        foundMatch = true;
-                }
+                for (var x = 0; x < BOTTLE_WIDTH; x++)
+                    matchPoint = this.calculateCentroid(matchPoint, this.checkColumnMatch(x));
                 // If we found at least one match, we need to stop any dropping from happening, set up the
                 // flag that indicates that we are displaying matches, and then set the current time so that
                 // the matches display for the proper amount of time before the update() method clears them
                 // away for us.
-                if (foundMatch) {
+                if (matchPoint) {
                     // Signal the game scene about what happened, so that it can accumulate score and such.
-                    this._scene.matchMade(this._virusMatchesFound, this._cascadeLength);
+                    this._scene.matchMade(this._virusMatchesFound, this._cascadeLength, matchPoint);
                     // Now pause dropping so we can display the matches.
                     this._dropping = false;
                     this._matching = true;
@@ -5540,8 +5569,10 @@ var nurdz;
              * @param virusesRemoved the number of viruses removed by this match (may be 0)
              * @param cascadeLength the part of the cascade chain that this is (first is 0, then 1, etc). This
              * is always 0 for the first match made after the initial capsule drop and then 1 for every match
+             * @param matchPoint a point in stage position that represents the center of the area that the
+             * match happened.
              */
-            GameScene.prototype.matchMade = function (virusesRemoved, cascadeLength) {
+            GameScene.prototype.matchMade = function (virusesRemoved, cascadeLength, matchPoint) {
                 // Simplistically, allow for 200 points per virus matched. This is actually wrong, but that can
                 // be reworked next because we want to make it a little cooler anyway.
                 this._score += (virusesRemoved * 200);

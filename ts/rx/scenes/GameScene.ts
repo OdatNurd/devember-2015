@@ -834,8 +834,10 @@ module nurdz.game
          * @param virusesRemoved the number of viruses removed by this match (may be 0)
          * @param cascadeLength the part of the cascade chain that this is (first is 0, then 1, etc). This
          * is always 0 for the first match made after the initial capsule drop and then 1 for every match
+         * @param matchPoint a point in stage position that represents the center of the area that the
+         * match happened.
          */
-        public matchMade (virusesRemoved : number, cascadeLength : number) : void
+        public matchMade (virusesRemoved : number, cascadeLength : number, matchPoint : Point) : void
         {
             // Simplistically, allow for 200 points per virus matched. This is actually wrong, but that can
             // be reworked next because we want to make it a little cooler anyway.
