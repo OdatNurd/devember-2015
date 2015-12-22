@@ -833,6 +833,15 @@ module nurdz.game
         }
 
         /**
+         * Restart the game by setting all state back to how it originally started, and then regenerate
+         * the level we currently have set.
+         */
+        restartGame () : void
+        {
+            this.startNewLevel (this._level);
+        }
+
+        /**
          * This gets invoked when the scene detects that the game is over; the user controlled capsule could
          * not drop down, but it was still outside the bottle, which means that everything is too blocked up
          * to continue.
@@ -847,6 +856,9 @@ module nurdz.game
             this._capsule.properties.visible = false;
             this._nextCapsule.properties.visible = false;
             this._controllingCapsule = false;
+
+            // Switch to the game over scene.
+            this._stage.switchToScene ("gameOver");
         }
 
         /**

@@ -30,6 +30,7 @@
         "rx/entity/Pointer.ts",
         "rx/entity/FloatingText.ts",
         "rx/scenes/Game.ts",
+        "rx/scenes/GameOver.ts",
         "main.ts"
     ]
 }
