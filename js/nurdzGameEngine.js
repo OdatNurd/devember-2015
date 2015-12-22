@@ -5122,8 +5122,8 @@ var nurdz;
          * The scene in which our game is played. This is responsible for drawing the bottle, the pills, and
          * handling the input and game logic.
          */
-        var GameScene = (function (_super) {
-            __extends(GameScene, _super);
+        var Game = (function (_super) {
+            __extends(Game, _super);
             /**
              * Construct a new game scene.
              *
@@ -5131,7 +5131,7 @@ var nurdz;
              * @param stage the stage that manages this scene
              * @constructor
              */
-            function GameScene(name, stage) {
+            function Game(name, stage) {
                 // Invoke the super to set up our instance.
                 _super.call(this, name, stage);
                 // We are neither generating a level nor allowing capsule control right now
@@ -5224,7 +5224,7 @@ var nurdz;
              * @returns {Point} a point whose x value is the width of the string in pixels and whose y is the
              * height in pixels.
              */
-            GameScene.prototype.numberStringSize = function (numberStr) {
+            Game.prototype.numberStringSize = function (numberStr) {
                 // Get the height and width of a digit in our number font in pixels based on the scale factor.
                 var pixelWidth = FONT_WIDTH * FONT_SCALE;
                 var pixelHeight = FONT_HEIGHT * FONT_SCALE;
@@ -5236,7 +5236,7 @@ var nurdz;
              *
              * Currently this method DOES NOT chain to the superclass, so it doesn't render any actors/entities.
              */
-            GameScene.prototype.render = function () {
+            Game.prototype.render = function () {
                 // Clear the canvas, then let the super render everything for us.
                 this._renderer.clear('black');
                 _super.prototype.render.call(this);
@@ -5256,7 +5256,7 @@ var nurdz;
              * @param color the color to render the number
              * @param numString the string to render, which needs to be only digits.
              */
-            GameScene.prototype.renderNumber = function (x, y, color, numString) {
+            Game.prototype.renderNumber = function (x, y, color, numString) {
                 for (var i = 0; i < numString.length; i++, x += (FONT_WIDTH * FONT_SCALE) + (FONT_SPACING * FONT_SCALE)) {
                     // Translate to where the number should start rendering, then scale the canvas. Since the font
                     // data assumes 1 pixels per unit, the scale sets how many pixels wide each unit turns out.
@@ -5272,7 +5272,7 @@ var nurdz;
              * Perform a frame update for our scene.
              * @param tick the game tick; this is a count of how many times the game loop has executed
              */
-            GameScene.prototype.update = function (tick) {
+            Game.prototype.update = function (tick) {
                 // Let the super update our child entities
                 _super.prototype.update.call(this, tick);
                 // Perform a virus generation step if it's been long enough to perform at least one.
@@ -5323,7 +5323,7 @@ var nurdz;
              * Check to see if the capsule is being moved by the player. If it is, and the move is allowed, go
              * ahead and do it.
              */
-            GameScene.prototype.controlCapsule = function () {
+            Game.prototype.controlCapsule = function () {
                 if (this._keys[InputKey.DROP]) {
                     this._keys[InputKey.DROP] = false;
                     // Tell the update loop to force a drop.
@@ -5355,7 +5355,7 @@ var nurdz;
              *
              * @param position the position to check
              */
-            GameScene.prototype.checkSegmentSelectedAtStagePosition = function (position) {
+            Game.prototype.checkSegmentSelectedAtStagePosition = function (position) {
                 // Get the first and last segment in the segment display
                 var first = this._segments[0];
                 var last = this._segments[this._segments.length - 1];
@@ -5386,7 +5386,7 @@ var nurdz;
              *
              * @param eventObj the mouse click event
              */
-            GameScene.prototype.inputMouseClick = function (eventObj) {
+            Game.prototype.inputMouseClick = function (eventObj) {
                 // If the pointer is not visible, debug mode is not enabled, so clicks do nothing, so ignore
                 // the event.
                 if (this._pointer.properties.visible == false)
@@ -5422,7 +5422,7 @@ var nurdz;
              * @param pressed true if this was a key press event or false otherwise
              * @returns {boolean} true if keyCode was an input key that we cared about or false otherwise
              */
-            GameScene.prototype.handleGameKey = function (keyCode, pressed) {
+            Game.prototype.handleGameKey = function (keyCode, pressed) {
                 // Store the state of the given key code and return true if this is one we care about.
                 switch (keyCode) {
                     // These are the keys that control the actual game play.
@@ -5449,7 +5449,7 @@ var nurdz;
              * Toggle debug state for the game. This makes various controls visible or not visible, which also
              * controls.
              */
-            GameScene.prototype.toggleDebugState = function () {
+            Game.prototype.toggleDebugState = function () {
                 // Toggle the visibility of the pointer and all segments.
                 this._pointer.properties.visible = !this._pointer.properties.visible;
                 for (var i = 0; i < this._segments.length; i++)
@@ -5467,7 +5467,7 @@ var nurdz;
              * @param eventObj the event that represents the key released
              * @returns {boolean} true if the key was handled, false otherwise
              */
-            GameScene.prototype.inputKeyUp = function (eventObj) {
+            Game.prototype.inputKeyUp = function (eventObj) {
                 // We only need to handle game keys here.
                 return this.handleGameKey(eventObj.keyCode, false);
             };
@@ -5477,7 +5477,7 @@ var nurdz;
              * @param eventObj the event that represents the key pressed
              * @returns {boolean} true if the key was handled, false otherwise.
              */
-            GameScene.prototype.inputKeyDown = function (eventObj) {
+            Game.prototype.inputKeyDown = function (eventObj) {
                 // If this is a key that is used to control the game, then this will handle it and return
                 // true, in which case we're done./
                 if (this.handleGameKey(eventObj.keyCode, true))
@@ -5510,7 +5510,7 @@ var nurdz;
              *
              * @param level the level to get the virus count for
              */
-            GameScene.prototype.virusesForLevel = function (level) {
+            Game.prototype.virusesForLevel = function (level) {
                 // Constrain the level to our pre defined bounds.
                 if (level < 0)
                     level = 0;
@@ -5532,7 +5532,7 @@ var nurdz;
              * @param level the level to check
              * @returns {number} how many ticks should occur between natural drops.
              */
-            GameScene.prototype.dropSpeedForLevel = function (level) {
+            Game.prototype.dropSpeedForLevel = function (level) {
                 var baseSpeedList = [30, 30, 30, 25, 25,
                     25, 20, 20, 20, 15,
                     15, 12, 12, 12, 12,
@@ -5551,7 +5551,7 @@ var nurdz;
              *
              * @param level the level to start.
              */
-            GameScene.prototype.startNewLevel = function (level) {
+            Game.prototype.startNewLevel = function (level) {
                 // Make sure the game is no longer over.
                 this._gameOver = false;
                 // Empty the bottle in preparation for the new level and hide the user controlled capsule and
@@ -5572,7 +5572,7 @@ var nurdz;
              * not drop down, but it was still outside the bottle, which means that everything is too blocked up
              * to continue.
              */
-            GameScene.prototype.gameOver = function () {
+            Game.prototype.gameOver = function () {
                 // Game is over now.
                 this._gameOver = true;
                 // Empty the bottle, hide the user capsule, and stop the user from controlling it.
@@ -5594,7 +5594,7 @@ var nurdz;
              * @param position the position to draw the text at initially
              * @returns {FloatingText} the configured text object
              */
-            GameScene.prototype.textObjectForScore = function (score, position) {
+            Game.prototype.textObjectForScore = function (score, position) {
                 var textObj = null;
                 // Scan over the list of text objects trying to find one that is not currently visible, so
                 // that we can reuse it.
@@ -5625,7 +5625,7 @@ var nurdz;
              * The bottle invokes this whenever a match completes that removes the last of the viruses from
              * the bottle. This is our signal that it is time to start a new level.
              */
-            GameScene.prototype.bottleEmpty = function () {
+            Game.prototype.bottleEmpty = function () {
                 this._level++;
                 this.startNewLevel(this._level);
             };
@@ -5633,7 +5633,7 @@ var nurdz;
              * The bottle invokes this whenever a match or drop completes but there are still viruses left in
              * the bottle.
              */
-            GameScene.prototype.dropComplete = function () {
+            Game.prototype.dropComplete = function () {
                 // Set the user capsule back to the top of the bottle and make sure that it's horizontal.
                 this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
                 this._capsule.properties.orientation = game.CapsuleOrientation.HORIZONTAL;
@@ -5667,7 +5667,7 @@ var nurdz;
              * @param matchPoint a point in stage position that represents the center of the area that the
              * match happened.
              */
-            GameScene.prototype.matchMade = function (virusesRemoved, cascadeLength, matchPoint) {
+            Game.prototype.matchMade = function (virusesRemoved, cascadeLength, matchPoint) {
                 var PER_VIRUS_SCORE = 200;
                 var CASCADE_MULTIPLIER_BONUS = [1, 2, 2.5, 3];
                 // Constrain the cascade length to the maximum allowable bonus.
@@ -5696,7 +5696,7 @@ var nurdz;
              *
              * This is responsible for turning off the generation flag when it's complete.
              */
-            GameScene.prototype.virusGenerationStep = function () {
+            Game.prototype.virusGenerationStep = function () {
                 // If the number of viruses in the bottle is the number that we want to generate, we're done.
                 if (this._bottle.virusCount == this._levelVirusCount) {
                     // Turn off the flag and then show the user capsule, we're ready to play.
@@ -5707,9 +5707,9 @@ var nurdz;
                 // Insert a virus into the bottle.
                 this._bottle.insertVirus(this._level, this._levelVirusCount - this._bottle.virusCount);
             };
-            return GameScene;
+            return Game;
         })(game.Scene);
-        game.GameScene = GameScene;
+        game.Game = Game;
     })(game = nurdz.game || (nurdz.game = {}));
 })(nurdz || (nurdz = {}));
 var nurdz;
@@ -5761,7 +5761,7 @@ var nurdz;
                 // Set up the button that will stop the game if something goes wrong.
                 setupButton(stage, "controlBtn");
                 // Register all of our scenes.
-                stage.addScene("game", new nurdz.game.GameScene("gameScene", stage));
+                stage.addScene("game", new nurdz.game.Game("gameScene", stage));
                 // Switch to the initial scene, add a dot to display and then run the game.
                 stage.switchToScene("game");
                 stage.run();

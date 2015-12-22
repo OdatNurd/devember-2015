@@ -29,7 +29,7 @@
         "rx/entity/Bottle.ts",
         "rx/entity/Pointer.ts",
         "rx/entity/FloatingText.ts",
-        "rx/scenes/GameScene.ts",
+        "rx/scenes/Game.ts",
         "main.ts"
     ]
 }

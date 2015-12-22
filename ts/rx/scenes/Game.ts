@@ -126,7 +126,7 @@ module nurdz.game
      * The scene in which our game is played. This is responsible for drawing the bottle, the pills, and
      * handling the input and game logic.
      */
-    export class GameScene extends Scene
+    export class Game extends Scene
     {
         /**
          * As a supreme hack, redefine the property that defines our renderer so that the compiler knows
