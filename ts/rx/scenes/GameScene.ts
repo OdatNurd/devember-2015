@@ -167,6 +167,13 @@ module nurdz.game
         private _capsule : Capsule;
 
         /**
+         * During the game, this displays under the current level number and shows you what the next
+         * capsule is going to be. The properties of this capsule get copied to the main capsule and this
+         * one gets randomly regenerated.
+         */
+        private _nextCapsule : Capsule;
+
+        /**
          * The score for the current game.
          */
         private _score : number;
@@ -380,6 +387,13 @@ module nurdz.game
             // that aligns it with the top edge of the bottom, which is 1/2 a tile thick.
             this._scoreTextPos = this._bottle.position.copyTranslatedXY (-textSize.x, (TILE_SIZE / 2));
 
+            // Create the capsule that shows us what the upcoming capsule is going to be, and place it
+            // below the level text. It starts off hidden
+            this._nextCapsule = new Capsule (stage, this._bottle, Utils.randomIntInRange (0, 8));
+            this._nextCapsule.properties.visible = false;
+            this._nextCapsule.setStagePosition (this._levelTextPos.copy ());
+            this._nextCapsule.position.translateXY (0, (FONT_HEIGHT * FONT_SCALE) + TILE_SIZE);
+
             // Set up the key state. We assume that all keys are not pressed at startup.
             this._keys = [];
             for (let i = 0 ; i < InputKey.KEY_COUNT ; i++)
@@ -391,6 +405,7 @@ module nurdz.game
             this.addActor (this._pointer);
             this.addActor (this._bottle);
             this.addActor (this._capsule);
+            this.addActor (this._nextCapsule);
 
             // Start a new level generating.
             this.startNewLevel (10);
@@ -678,7 +693,7 @@ module nurdz.game
         private toggleDebugState () : void
         {
             // Toggle the visibility of the pointer and all segments.
-            this._pointer.properties.visible =  !this._pointer.properties.visible;
+            this._pointer.properties.visible = !this._pointer.properties.visible;
             for (let i = 0 ; i < this._segments.length ; i++)
                 this._segments[i].properties.visible = !this._segments[i].properties.visible;
 
@@ -802,9 +817,11 @@ module nurdz.game
             // Make sure the game is no longer over.
             this._gameOver = false;
 
-            // Empty the bottle in preparation for the new level and hide the user controlled capsule.
+            // Empty the bottle in preparation for the new level and hide the user controlled capsule and
+            // the next capsule.
             this._bottle.emptyBottle ();
             this._capsule.properties.visible = false;
+            this._nextCapsule.properties.visible = false;
             this._controllingCapsule = false;
 
             // Set the level to generate and turn on our flag that says we are generating a new level.
@@ -828,6 +845,7 @@ module nurdz.game
             // Empty the bottle, hide the user capsule, and stop the user from controlling it.
             this._bottle.emptyBottle ();
             this._capsule.properties.visible = false;
+            this._nextCapsule.properties.visible = false;
             this._controllingCapsule = false;
         }
 
@@ -902,13 +920,17 @@ module nurdz.game
             this._capsule.setMapPositionXY (this._bottle.openingXPosition, -1);
             this._capsule.properties.orientation = CapsuleOrientation.HORIZONTAL;
 
-            // Now select a new color set for it and make sure that its segments update to show its new
-            // position and colors.
-            this._capsule.properties.type = Utils.randomIntInRange (0, 8);
-            this._capsule.updateSegments ();
+            // Copy the type from the next capsule to the current capsule, then regenerate the next capsule.
+            this._capsule.properties.type = this._nextCapsule.properties.type;
+            this._nextCapsule.properties.type = Utils.randomIntInRange (0, 8);
 
-            // Now we can tell it that it's visible and let the user control it again.
+            // Make both capsules update their segments, so that they visually represent properly.
+            this._capsule.updateSegments ();
+            this._nextCapsule.updateSegments ();
+
+            // Now we can make both capsules visible and let the user gain control again.
             this._capsule.properties.visible = true;
+            this._nextCapsule.properties.visible = true;
             this._controllingCapsule = true;
 
             // Reset the last time the capsule naturally dropped to right this second, so that there is a

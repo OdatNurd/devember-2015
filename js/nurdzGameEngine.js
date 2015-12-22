@@ -5196,6 +5196,12 @@ var nurdz;
                 // The score position appears to the top left of the bottle, adjusted down 1/2 a tile because
                 // that aligns it with the top edge of the bottom, which is 1/2 a tile thick.
                 this._scoreTextPos = this._bottle.position.copyTranslatedXY(-textSize.x, (game.TILE_SIZE / 2));
+                // Create the capsule that shows us what the upcoming capsule is going to be, and place it
+                // below the level text. It starts off hidden
+                this._nextCapsule = new game.Capsule(stage, this._bottle, game.Utils.randomIntInRange(0, 8));
+                this._nextCapsule.properties.visible = false;
+                this._nextCapsule.setStagePosition(this._levelTextPos.copy());
+                this._nextCapsule.position.translateXY(0, (FONT_HEIGHT * FONT_SCALE) + game.TILE_SIZE);
                 // Set up the key state. We assume that all keys are not pressed at startup.
                 this._keys = [];
                 for (var i = 0; i < InputKey.KEY_COUNT; i++)
@@ -5206,6 +5212,7 @@ var nurdz;
                 this.addActor(this._pointer);
                 this.addActor(this._bottle);
                 this.addActor(this._capsule);
+                this.addActor(this._nextCapsule);
                 // Start a new level generating.
                 this.startNewLevel(10);
             }
@@ -5547,9 +5554,11 @@ var nurdz;
             GameScene.prototype.startNewLevel = function (level) {
                 // Make sure the game is no longer over.
                 this._gameOver = false;
-                // Empty the bottle in preparation for the new level and hide the user controlled capsule.
+                // Empty the bottle in preparation for the new level and hide the user controlled capsule and
+                // the next capsule.
                 this._bottle.emptyBottle();
                 this._capsule.properties.visible = false;
+                this._nextCapsule.properties.visible = false;
                 this._controllingCapsule = false;
                 // Set the level to generate and turn on our flag that says we are generating a new level.
                 this._level = level;
@@ -5569,6 +5578,7 @@ var nurdz;
                 // Empty the bottle, hide the user capsule, and stop the user from controlling it.
                 this._bottle.emptyBottle();
                 this._capsule.properties.visible = false;
+                this._nextCapsule.properties.visible = false;
                 this._controllingCapsule = false;
             };
             /**
@@ -5627,12 +5637,15 @@ var nurdz;
                 // Set the user capsule back to the top of the bottle and make sure that it's horizontal.
                 this._capsule.setMapPositionXY(this._bottle.openingXPosition, -1);
                 this._capsule.properties.orientation = game.CapsuleOrientation.HORIZONTAL;
-                // Now select a new color set for it and make sure that its segments update to show its new
-                // position and colors.
-                this._capsule.properties.type = game.Utils.randomIntInRange(0, 8);
+                // Copy the type from the next capsule to the current capsule, then regenerate the next capsule.
+                this._capsule.properties.type = this._nextCapsule.properties.type;
+                this._nextCapsule.properties.type = game.Utils.randomIntInRange(0, 8);
+                // Make both capsules update their segments, so that they visually represent properly.
                 this._capsule.updateSegments();
-                // Now we can tell it that it's visible and let the user control it again.
+                this._nextCapsule.updateSegments();
+                // Now we can make both capsules visible and let the user gain control again.
                 this._capsule.properties.visible = true;
+                this._nextCapsule.properties.visible = true;
                 this._controllingCapsule = true;
                 // Reset the last time the capsule naturally dropped to right this second, so that there is a
                 // delay before the new one drops on its own.
