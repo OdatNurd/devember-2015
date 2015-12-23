@@ -93,7 +93,7 @@ module nurdz.game
         /**
          * The scene that owns us; we notify the scene whenever events happen.
          */
-        private _scene : GameScene;
+        private _scene : Game;
 
         /**
          * This holds the contents of the bottle, which is the actual game board. This is an array of
@@ -200,7 +200,7 @@ module nurdz.game
          * @param parent the scene that owns us
          * @param color the color to render the bottle with
          */
-        constructor (stage : Stage, parent : GameScene, color : string)
+        constructor (stage : Stage, parent : Game, color : string)
         {
             // Calculate the dimensions of the bottle in pixels. This is inclusive of both the margins and
             // the inner contents area.
