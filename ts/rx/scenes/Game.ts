@@ -297,14 +297,13 @@ module nurdz.game
         /**
          * Construct a new game scene.
          *
-         * @param name the name of this scene for debug purposes
          * @param stage the stage that manages this scene
          * @constructor
          */
-        constructor (name : string, stage : Stage)
+        constructor (stage : Stage)
         {
             // Invoke the super to set up our instance.
-            super (name, stage);
+            super ("game", stage);
 
             // We are neither generating a level nor allowing capsule control right now
             this._generatingLevel = false;
@@ -410,6 +409,20 @@ module nurdz.game
 
             // Start a new level generating.
             this.startNewLevel (10);
+        }
+
+        /**
+         * Triggers when we become the active scene.
+         *
+         * @param previousScene the scene that used to be active
+         */
+        activating (previousScene : Scene) : void
+        {
+            // Let the super do things so we get debug messages
+            super.activating (previousScene);
+
+            // Restart the game; we're either restarting after a game over or coming in from the title screen.
+            this.restartGame ();
         }
 
         /**
@@ -839,6 +852,9 @@ module nurdz.game
          */
         restartGame () : void
         {
+            // TODO Should this set up anything else?
+            // Reset the score of the game, then start a new level.
+            this._score = 0;
             this.startNewLevel (this._level);
         }
 

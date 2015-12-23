@@ -1,5 +1,6 @@
 module nurdz.main
 {
+    import TitleScreen = nurdz.game.TitleScreen;
     /**
      * Set up the button on the page to toggle the state of the game.
      *
@@ -61,7 +62,7 @@ module nurdz.main
             setupButton (stage, "controlBtn");
 
             // Register all of our scenes.
-            stage.addScene ("game", new game.Game ("gameScene", stage));
+            stage.addScene ("game", new game.Game (stage));
             stage.addScene ("gameOver", new game.GameOver (stage));
 
             // Switch to the initial scene, add a dot to display and then run the game.

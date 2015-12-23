@@ -5130,13 +5130,12 @@ var nurdz;
             /**
              * Construct a new game scene.
              *
-             * @param name the name of this scene for debug purposes
              * @param stage the stage that manages this scene
              * @constructor
              */
-            function Game(name, stage) {
+            function Game(stage) {
                 // Invoke the super to set up our instance.
-                _super.call(this, name, stage);
+                _super.call(this, "game", stage);
                 // We are neither generating a level nor allowing capsule control right now
                 this._generatingLevel = false;
                 this._controllingCapsule = false;
@@ -5233,6 +5232,17 @@ var nurdz;
                 var pixelHeight = FONT_HEIGHT * FONT_SCALE;
                 var pixelGap = FONT_SPACING * FONT_SCALE;
                 return new game.Point(numberStr.length * pixelWidth + (numberStr.length - 1) * pixelGap, pixelHeight);
+            };
+            /**
+             * Triggers when we become the active scene.
+             *
+             * @param previousScene the scene that used to be active
+             */
+            Game.prototype.activating = function (previousScene) {
+                // Let the super do things so we get debug messages
+                _super.prototype.activating.call(this, previousScene);
+                // Restart the game; we're either restarting after a game over or coming in from the title screen.
+                this.restartGame();
             };
             /**
              * Render our scene.
@@ -5575,6 +5585,9 @@ var nurdz;
              * the level we currently have set.
              */
             Game.prototype.restartGame = function () {
+                // TODO Should this set up anything else?
+                // Reset the score of the game, then start a new level.
+                this._score = 0;
                 this.startNewLevel(this._level);
             };
             /**
@@ -5901,7 +5914,7 @@ var nurdz;
                 // Set up the button that will stop the game if something goes wrong.
                 setupButton(stage, "controlBtn");
                 // Register all of our scenes.
-                stage.addScene("game", new nurdz.game.Game("gameScene", stage));
+                stage.addScene("game", new nurdz.game.Game(stage));
                 stage.addScene("gameOver", new nurdz.game.GameOver(stage));
                 // Switch to the initial scene, add a dot to display and then run the game.
                 stage.switchToScene("game");
