@@ -62,7 +62,7 @@ module nurdz.main
 
             // Register all of our scenes.
             stage.addScene ("game", new game.Game ("gameScene", stage));
-            stage.addScene ("gameOver", new game.GameOver ("gameOverScene", stage));
+            stage.addScene ("gameOver", new game.GameOver (stage));
 
             // Switch to the initial scene, add a dot to display and then run the game.
             stage.switchToScene ("game");

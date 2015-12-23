@@ -5752,11 +5752,10 @@ var nurdz;
             /**
              * Construct a new scene, giving it a name and a controlling stage.
              *
-             * @param name the name of this scene for debug purposes
              * @param stage the stage that controls us.
              */
-            function GameOver(name, stage) {
-                _super.call(this, name, stage);
+            function GameOver(stage) {
+                _super.call(this, "gameOver", stage);
                 /**
                  * The index into the color list that indicates what color to use to render our blinking text.
                  *
@@ -5832,7 +5831,7 @@ var nurdz;
                     this._renderer.clear('black');
                 // Display our game over and press a key to restart text.
                 this.displayText(this._stage.width / 2, this._stage.height / 2, "Game Over", MAIN_FONT, 'white');
-                this.displayText(this._stage.width / 2, this._stage.height / 2 + (1.5 * game.TILE_SIZE), "Press any key", SUB_FONT, this._colors[this._colorIndex]);
+                this.displayText(this._stage.width / 2, this._stage.height / 2 + (1.5 * game.TILE_SIZE), "Press enter", SUB_FONT, this._colors[this._colorIndex]);
             };
             /**
              * Invoked to handle a key press. We use this to tell the stage to switch to the game scene again
@@ -5842,9 +5841,9 @@ var nurdz;
              * @returns {boolean} always true
              */
             GameOver.prototype.inputKeyDown = function (eventObj) {
-                // If the other scene responds, tell it to restart the game
-                if (this._gameScene.restartGame != null)
-                    this._gameScene.restartGame();
+                if (eventObj.keyCode != game.KeyCodes.KEY_ENTER)
+                    return false;
+                // Switch to the game scene.
                 this._stage.switchToScene("game");
                 return true;
             };
@@ -5903,7 +5902,7 @@ var nurdz;
                 setupButton(stage, "controlBtn");
                 // Register all of our scenes.
                 stage.addScene("game", new nurdz.game.Game("gameScene", stage));
-                stage.addScene("gameOver", new nurdz.game.GameOver("gameOverScene", stage));
+                stage.addScene("gameOver", new nurdz.game.GameOver(stage));
                 // Switch to the initial scene, add a dot to display and then run the game.
                 stage.switchToScene("game");
                 stage.run();

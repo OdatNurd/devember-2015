@@ -56,12 +56,11 @@ module nurdz.game
         /**
          * Construct a new scene, giving it a name and a controlling stage.
          *
-         * @param name the name of this scene for debug purposes
          * @param stage the stage that controls us.
          */
-        constructor (name : string, stage : Stage)
+        constructor (stage : Stage)
         {
-            super (name, stage);
+            super ("gameOver", stage);
         }
 
         /**
@@ -139,7 +138,7 @@ module nurdz.game
             // Display our game over and press a key to restart text.
             this.displayText (this._stage.width / 2, this._stage.height / 2, "Game Over", MAIN_FONT, 'white');
             this.displayText (this._stage.width / 2, this._stage.height / 2 + (1.5 * TILE_SIZE),
-                              "Press any key", SUB_FONT, this._colors[this._colorIndex]);
+                              "Press enter", SUB_FONT, this._colors[this._colorIndex]);
         }
 
         /**
@@ -151,10 +150,10 @@ module nurdz.game
          */
         inputKeyDown (eventObj : KeyboardEvent) : boolean
         {
-            // If the other scene responds, tell it to restart the game
-            if (this._gameScene.restartGame != null)
-                this._gameScene.restartGame ();
+            if (eventObj.keyCode != KeyCodes.KEY_ENTER)
+                return false;
 
+            // Switch to the game scene.
             this._stage.switchToScene ("game");
             return true;
         }
