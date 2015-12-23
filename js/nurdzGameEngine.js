@@ -5867,6 +5867,186 @@ var nurdz;
 })(nurdz || (nurdz = {}));
 var nurdz;
 (function (nurdz) {
+    var game;
+    (function (game) {
+        /**
+         * The font that is used for the title font.
+         *
+         * @type {string}
+         */
+        var TITLE_FONT = "96px Arial,Serif";
+        /**
+         * The font that is used for our informative text.
+         *
+         * @type {string}
+         */
+        var INFO_FONT = "32px Arial,Serif";
+        /**
+         * The font that is used to display our menu text.
+         * @type {string}
+         */
+        var MENU_FONT = "40px Arial,Serif";
+        /**
+         * This class represents the title screen. It allows the user to select the level that the game will
+         * be played at.
+         */
+        var TitleScreen = (function (_super) {
+            __extends(TitleScreen, _super);
+            /**
+             * Construct the title screen scene.
+             *
+             * @param stage the stage that controls us
+             */
+            function TitleScreen(stage) {
+                // Let the super do some setup
+                _super.call(this, "titleScreen", stage);
+                // Set up our menu.
+                this._menuSelection = 0;
+                this._menu = [
+                    {
+                        position: new game.Point(150, 400),
+                        text: "Change Level (left/right arrows)"
+                    },
+                    {
+                        position: new game.Point(150, 450),
+                        text: "Start Game"
+                    },
+                ];
+                // Set up the pointer.
+                this._pointer = new game.Pointer(stage, 0, 0);
+                this.updateMenuPointer();
+                this.addActor(this._pointer);
+                // default level.
+                this._level = 0;
+            }
+            Object.defineProperty(TitleScreen.prototype, "level", {
+                /**
+                 * Get the current level. This is the last set value, which may be what the user selected, or may
+                 * be a higher value if an external caller has tweaked it.
+                 *
+                 * @returns {number}
+                 */
+                get: function () { return this._level; },
+                /**
+                 * Set the passed in level to be the level that the user has set.
+                 *
+                 * @param newLevel
+                 */
+                set: function (newLevel) { this._level = newLevel; },
+                enumerable: true,
+                configurable: true
+            });
+            /**
+             * Change the location of the menu pointer to point to the currently selected menu item.
+             */
+            TitleScreen.prototype.updateMenuPointer = function () {
+                this._pointer.setStagePositionXY(this._menu[this._menuSelection].position.x, this._menu[this._menuSelection].position.y);
+            };
+            /**
+             * Render the name of the game to the screen.
+             */
+            TitleScreen.prototype.renderTitle = function () {
+                this._renderer.translateAndRotate(this._stage.width / 2, 45);
+                // Set the font and indicate that the text should be centered in both directions.
+                this._renderer.context.font = TITLE_FONT;
+                this._renderer.context.textAlign = "center";
+                this._renderer.context.textBaseline = "middle";
+                // Draw the text and restore the context.
+                this._renderer.drawTxt("Rx", 0, 0, 'white');
+                this._renderer.restore();
+            };
+            /**
+             * Render our info text to the screen.
+             */
+            TitleScreen.prototype.renderInfoText = function () {
+                // The info text that we generate to the screen to explain what we are.
+                var infoText = [
+                    "A simple Dr. Mario clone",
+                    "",
+                    "Coded during #devember 2015 by Terence Martin",
+                    "as an experiment in TypeScript and #gamedev",
+                    "",
+                    "Feel free to use this code as you see fit. See the",
+                    "LICENSE file for details"
+                ];
+                // Save the context state and then set our font and vertical font alignment.
+                this._renderer.translateAndRotate(game.TILE_SIZE, 132);
+                this._renderer.context.font = INFO_FONT;
+                this._renderer.context.textBaseline = "middle";
+                // Draw the text now
+                for (var i = 0, y = 0; i < infoText.length; i++, y += game.TILE_SIZE)
+                    this._renderer.drawTxt(infoText[i], 0, y, '#c8c8c8');
+                // We can restore now.
+                this._renderer.restore();
+            };
+            /**
+             * Render our menu text.
+             */
+            TitleScreen.prototype.renderMenu = function () {
+                // Save the context and set up our font and font rendering.
+                this._renderer.context.save();
+                this._renderer.context.font = MENU_FONT;
+                this._renderer.context.textBaseline = "middle";
+                // Render all of the text items. We offset them by the width of the pointer that indicates
+                // which item is the current item, with a vertical offset that is half of its height. This
+                // makes the point on the pointer align with the center of the text.
+                for (var i = 0; i < this._menu.length; i++) {
+                    var item = this._menu[i];
+                    this._renderer.drawTxt(item.text, item.position.x + game.TILE_SIZE, item.position.y + (game.TILE_SIZE / 2), 'white');
+                }
+                this._renderer.restore();
+            };
+            /**
+             * Invoked to render us. We clear the screen, show some intro text, and we allow the user to
+             * select a starting level.
+             */
+            TitleScreen.prototype.render = function () {
+                // Clear the screen and let the super render our child entities.
+                this._renderer.clear('black');
+                _super.prototype.render.call(this);
+                // Render our text.
+                this.renderTitle();
+                this.renderInfoText();
+                this.renderMenu();
+            };
+            /**
+             * Triggers on a key press
+             *
+             * @param eventObj key event object
+             * @returns {boolean} true if we handled the key or false otherwise.
+             */
+            TitleScreen.prototype.inputKeyDown = function (eventObj) {
+                switch (eventObj.keyCode) {
+                    case game.KeyCodes.KEY_UP:
+                        this._menuSelection--;
+                        if (this._menuSelection < 0)
+                            this._menuSelection = this._menu.length - 1;
+                        this.updateMenuPointer();
+                        return true;
+                    case game.KeyCodes.KEY_DOWN:
+                        this._menuSelection++;
+                        if (this._menuSelection >= this._menu.length)
+                            this._menuSelection = 0;
+                        this.updateMenuPointer();
+                        return true;
+                    case game.KeyCodes.KEY_ENTER:
+                        if (this._menuSelection == 1) {
+                            // TODO this does not work properly; the game is already set up at this point
+                            this._stage.switchToScene("game");
+                            return true;
+                        }
+                        break;
+                }
+                // Not handled.
+                return false;
+            };
+            return TitleScreen;
+        })(game.Scene);
+        game.TitleScreen = TitleScreen;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
     var main;
     (function (main) {
         /**
@@ -5916,8 +6096,9 @@ var nurdz;
                 // Register all of our scenes.
                 stage.addScene("game", new nurdz.game.Game(stage));
                 stage.addScene("gameOver", new nurdz.game.GameOver(stage));
+                stage.addScene("title", new nurdz.game.TitleScreen(stage));
                 // Switch to the initial scene, add a dot to display and then run the game.
-                stage.switchToScene("game");
+                stage.switchToScene("title");
                 stage.run();
             }
             catch (error) {
