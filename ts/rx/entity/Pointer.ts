@@ -9,6 +9,12 @@ module nurdz.game
          * When true, we render ourselves when asked; otherwise we silently ignore render calls.
          */
         visible? : boolean;
+
+        /**
+         * The rotation of the pointer, in degrees. The default orientation corresponds to a rotation
+         * angle of 0, which points the pointer to the right. 90 degrees is facing down.
+         */
+        rotation? : number;
     }
 
     /**
@@ -44,7 +50,7 @@ module nurdz.game
          *
          * @type {Polygon}
          */
-        private _poly : Polygon = [[4, 4], [TILE_SIZE - 4, 4], [TILE_SIZE / 2, TILE_SIZE - 4]];
+        private _poly : Polygon = [[4, 4], [TILE_SIZE - 4, TILE_SIZE / 2], [4, TILE_SIZE - 4]];
 
         /**
          * Create the pointer object to be owned by the stage.
@@ -52,11 +58,13 @@ module nurdz.game
          * @param stage the stage that owns this pointer
          * @param x the X location of the pointer
          * @param y the Y location of the pointer`
+         * @param rotation the rotation of the pointer initially.
          */
-        constructor (stage : Stage, x : number, y : number)
+        constructor (stage : Stage, x : number, y : number, rotation : number = 0)
         {
             super ("Cursor", stage, x, y, TILE_SIZE, TILE_SIZE, 1, <PointerProperties> {
-                visible: true
+                visible: true,
+                rotation: rotation
             });
         }
 
@@ -87,7 +95,7 @@ module nurdz.game
         {
             if (this._properties.visible)
             {
-                renderer.translateAndRotate (x, y, null);
+                renderer.translateAndRotate (x, y, this._properties.rotation);
                 renderer.fillPolygon (this._poly, this._colors[this._colorIndex]);
                 renderer.restore ();
             }

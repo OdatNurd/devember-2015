@@ -350,11 +350,12 @@ module nurdz.game
             this._segments[SegmentType.EMPTY].properties.debug = true;
             this._segments[SegmentType.VIRUS].virusPolygon = 2;
 
-            // Create our pointer pointing to the selected segment in the segment list. We also want it to
+            // Create our pointer pointing to the selected segment in the segment l`ist. We also want it to
             // be invisible by default
             this._pointer = new Pointer (stage,
                 this._segments[this._segmentIndex].position.x,
-                this._segments[this._segmentIndex].position.y - TILE_SIZE);
+                this._segments[this._segmentIndex].position.y - TILE_SIZE,
+                90);
             this._pointer.properties.visible = false;
 
             // Create the bottle that will hold te game board and its contents.

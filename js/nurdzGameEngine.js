@@ -4849,10 +4849,13 @@ var nurdz;
              * @param stage the stage that owns this pointer
              * @param x the X location of the pointer
              * @param y the Y location of the pointer`
+             * @param rotation the rotation of the pointer initially.
              */
-            function Pointer(stage, x, y) {
+            function Pointer(stage, x, y, rotation) {
+                if (rotation === void 0) { rotation = 0; }
                 _super.call(this, "Cursor", stage, x, y, game.TILE_SIZE, game.TILE_SIZE, 1, {
-                    visible: true
+                    visible: true,
+                    rotation: rotation
                 });
                 /**
                  * The index into the color list that indicates what color to render ourselves.
@@ -4871,7 +4874,7 @@ var nurdz;
                  *
                  * @type {Polygon}
                  */
-                this._poly = [[4, 4], [game.TILE_SIZE - 4, 4], [game.TILE_SIZE / 2, game.TILE_SIZE - 4]];
+                this._poly = [[4, 4], [game.TILE_SIZE - 4, game.TILE_SIZE / 2], [4, game.TILE_SIZE - 4]];
             }
             Object.defineProperty(Pointer.prototype, "properties", {
                 get: function () { return this._properties; },
@@ -4900,7 +4903,7 @@ var nurdz;
              */
             Pointer.prototype.render = function (x, y, renderer) {
                 if (this._properties.visible) {
-                    renderer.translateAndRotate(x, y, null);
+                    renderer.translateAndRotate(x, y, this._properties.rotation);
                     renderer.fillPolygon(this._poly, this._colors[this._colorIndex]);
                     renderer.restore();
                 }
@@ -5170,9 +5173,9 @@ var nurdz;
                 // same polygon to start with.
                 this._segments[game.SegmentType.EMPTY].properties.debug = true;
                 this._segments[game.SegmentType.VIRUS].virusPolygon = 2;
-                // Create our pointer pointing to the selected segment in the segment list. We also want it to
+                // Create our pointer pointing to the selected segment in the segment l`ist. We also want it to
                 // be invisible by default
-                this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE);
+                this._pointer = new game.Pointer(stage, this._segments[this._segmentIndex].position.x, this._segments[this._segmentIndex].position.y - game.TILE_SIZE, 90);
                 this._pointer.properties.visible = false;
                 // Create the bottle that will hold te game board and its contents.
                 this._bottle = new game.Bottle(stage, this, '#cccccc');
