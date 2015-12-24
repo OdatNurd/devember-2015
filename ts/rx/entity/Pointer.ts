@@ -50,7 +50,11 @@ module nurdz.game
          *
          * @type {Polygon}
          */
-        private _poly : Polygon = [[4, 4], [TILE_SIZE - 4, TILE_SIZE / 2], [4, TILE_SIZE - 4]];
+        private _poly : Polygon = [
+            [-(TILE_SIZE / 2) + 4, -(TILE_SIZE / 2) + 4],
+            [(TILE_SIZE / 2) - 4, 0],
+            [-(TILE_SIZE / 2) + 4, (TILE_SIZE / 2) - 4],
+        ];
 
         /**
          * Create the pointer object to be owned by the stage.
@@ -85,7 +89,7 @@ module nurdz.game
         }
 
         /**
-         * Render ourselves as a downward facing arrow.
+         * Render ourselves as an arrow rotated in the direction that we are rotated for.
          *
          * @param x the X location of where to draw ourselves
          * @param y the Y location of where to draw ourselves
@@ -93,9 +97,13 @@ module nurdz.game
          */
         render (x : number, y : number, renderer : Renderer) : void
         {
+            // Only render if we're visible.
             if (this._properties.visible)
             {
-                renderer.translateAndRotate (x, y, this._properties.rotation);
+                // Get ready for rendering. The X, Y we get is our upper left corner but in order to
+                // render properly we need it to be our center.
+                renderer.translateAndRotate (x + (TILE_SIZE / 2), y + (TILE_SIZE / 2),
+                                             this._properties.rotation);
                 renderer.fillPolygon (this._poly, this._colors[this._colorIndex]);
                 renderer.restore ();
             }

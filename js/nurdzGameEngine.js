@@ -4899,7 +4899,11 @@ var nurdz;
                  *
                  * @type {Polygon}
                  */
-                this._poly = [[4, 4], [game.TILE_SIZE - 4, game.TILE_SIZE / 2], [4, game.TILE_SIZE - 4]];
+                this._poly = [
+                    [-(game.TILE_SIZE / 2) + 4, -(game.TILE_SIZE / 2) + 4],
+                    [(game.TILE_SIZE / 2) - 4, 0],
+                    [-(game.TILE_SIZE / 2) + 4, (game.TILE_SIZE / 2) - 4],
+                ];
             }
             Object.defineProperty(Pointer.prototype, "properties", {
                 get: function () { return this._properties; },
@@ -4920,15 +4924,18 @@ var nurdz;
                 }
             };
             /**
-             * Render ourselves as a downward facing arrow.
+             * Render ourselves as an arrow rotated in the direction that we are rotated for.
              *
              * @param x the X location of where to draw ourselves
              * @param y the Y location of where to draw ourselves
              * @param renderer the renderer to use to draw ourselves
              */
             Pointer.prototype.render = function (x, y, renderer) {
+                // Only render if we're visible.
                 if (this._properties.visible) {
-                    renderer.translateAndRotate(x, y, this._properties.rotation);
+                    // Get ready for rendering. The X, Y we get is our upper left corner but in order to
+                    // render properly we need it to be our center.
+                    renderer.translateAndRotate(x + (game.TILE_SIZE / 2), y + (game.TILE_SIZE / 2), this._properties.rotation);
                     renderer.fillPolygon(this._poly, this._colors[this._colorIndex]);
                     renderer.restore();
                 }
