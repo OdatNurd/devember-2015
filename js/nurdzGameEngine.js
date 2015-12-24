@@ -5088,6 +5088,16 @@ var nurdz;
                 enumerable: true,
                 configurable: true
             });
+            Object.defineProperty(Menu.prototype, "length", {
+                /**
+                 * Return the number of items that are currently in the menu.
+                 *
+                 * @returns {number}
+                 */
+                get: function () { return this._items.length; },
+                enumerable: true,
+                configurable: true
+            });
             /**
              * Change the location of the menu pointer to point to the currently selected menu item.
              */
@@ -5111,6 +5121,18 @@ var nurdz;
                 // position our pointer.
                 if (this._items.length == 1)
                     this.updateMenuPointer();
+            };
+            /**
+             * Return the menu item at the provided index, which will be null if the index provided is out of
+             * range of the number of items currently maintained in the menu.
+             *
+             * @param index the index of the item to get
+             * @returns {MenuItem} the menu item at the provided index or null if the index is not valid.
+             */
+            Menu.prototype.getItem = function (index) {
+                if (index < 0 || index >= this._items.length)
+                    return null;
+                return this._items[index];
             };
             /**
              * Change the selected menu item to the previous item, if possible.

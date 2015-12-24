@@ -63,6 +63,14 @@ module nurdz.game
         { return this._selected; }
 
         /**
+         * Return the number of items that are currently in the menu.
+         *
+         * @returns {number}
+         */
+        get length () : number
+        { return this._items.length; }
+
+        /**
          * Construct a new menu which renders its menu text with the font name and size provided.
          *
          * @param stage the stage that will display this menu
@@ -118,6 +126,21 @@ module nurdz.game
             // position our pointer.
             if (this._items.length == 1)
                 this.updateMenuPointer ();
+        }
+
+        /**
+         * Return the menu item at the provided index, which will be null if the index provided is out of
+         * range of the number of items currently maintained in the menu.
+         *
+         * @param index the index of the item to get
+         * @returns {MenuItem} the menu item at the provided index or null if the index is not valid.
+         */
+        getItem (index : number) : MenuItem
+        {
+            if (index < 0 || index >= this._items.length)
+                return null;
+
+            return this._items[index];
         }
 
         /**
