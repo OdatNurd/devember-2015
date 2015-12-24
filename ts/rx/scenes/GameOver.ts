@@ -8,13 +8,6 @@ module nurdz.game
     const MAIN_FONT = "32px Arial, Serif";
 
     /**
-     * The font that is used to display the "press any key" text.
-     *
-     * @type {string}
-     */
-    const SUB_FONT = "16px monospace";
-
-    /**
      * This class represents the game over screen. This is just a simple scene that jumps back to another
      * scene after telling you that the game is over.
      *
@@ -40,18 +33,25 @@ module nurdz.game
         private _gameScene : Game;
 
         /**
-         * The index into the color list that indicates what color to use to render our blinking text.
-         *
-         * @type {number}
+         * Our menu; this allows the user to determine if they will try the same level again or go back to
+         * the title screen.
          */
-        private _colorIndex : number = 0;
+        private _menu : Menu;
 
         /**
-         * The list of colors that we use to display our blinking text.
-         *
-         * @type {Array<string>}
+         * Get the level that the game is currently at. In this scene, this represents the level that the
+         * last game was at before it ended. This is queried by the title screen when we return to it so
+         * that it can set the level to be what the player ended at if they quit.
          */
-        private _colors : Array<string> = ['#ffffff', '#aaaaaa'];
+        get level () : number
+        {
+            // If we have a game scene and it has a level property, then return it.
+            if (this._gameScene && this._gameScene["level"] != undefined)
+                return this._gameScene["level"];
+
+            // Return 0 by default.
+            return 0;
+        }
 
         /**
          * Construct a new scene, giving it a name and a controlling stage.
@@ -61,6 +61,14 @@ module nurdz.game
         constructor (stage : Stage)
         {
             super ("gameOver", stage);
+
+            // Set up our menu
+            this._menu = new Menu (stage, "Arial,Serif", 20);
+            this._menu.addItem ("Try again", new Point (325, 350));
+            this._menu.addItem ("Quit", new Point (325, 390));
+
+            // Make sure it gets render and update requests.
+            this.addActor (this._menu);
         }
 
         /**
@@ -76,24 +84,6 @@ module nurdz.game
             // store the scene that game before us.
             super.activating (previousScene);
             this._gameScene = <Game> previousScene;
-        }
-
-        /**
-         * Perform a frame update for our scene.
-         * @param tick the game tick; this is a count of how many times the game loop has executed
-         */
-        update (tick : number) : void
-        {
-            // Let the super update our child entities
-            super.update (tick);
-
-            // Cycle to the next color if its time.
-            if (tick % 5 == 0)
-            {
-                this._colorIndex++;
-                if (this._colorIndex == this._colors.length)
-                    this._colorIndex = 0;
-            }
         }
 
         /**
@@ -137,8 +127,9 @@ module nurdz.game
 
             // Display our game over and press a key to restart text.
             this.displayText (this._stage.width / 2, this._stage.height / 2, "Game Over", MAIN_FONT, 'white');
-            this.displayText (this._stage.width / 2, this._stage.height / 2 + (1.5 * TILE_SIZE),
-                              "Press enter", SUB_FONT, this._colors[this._colorIndex]);
+
+            // Get the menu to update
+            super.render ();
         }
 
         /**
@@ -154,12 +145,22 @@ module nurdz.game
             if (super.inputKeyDown (eventObj))
                 return true;
 
-            if (eventObj.keyCode != KeyCodes.KEY_ENTER)
-                return false;
+            switch (eventObj.keyCode)
+            {
+                case KeyCodes.KEY_UP:
+                    this._menu.selectPrevious ();
+                    return true;
 
-            // Switch to the game scene.
-            this._stage.switchToScene ("game");
-            return true;
+                case KeyCodes.KEY_DOWN:
+                    this._menu.selectNext ();
+                    return true;
+
+                case KeyCodes.KEY_ENTER:
+                    this._stage.switchToScene (this._menu.selected == 0 ? "game" : "title");
+                    return true;
+            }
+
+            return false;
         }
     }
 }

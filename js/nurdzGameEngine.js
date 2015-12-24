@@ -5935,12 +5935,6 @@ var nurdz;
          */
         var MAIN_FONT = "32px Arial, Serif";
         /**
-         * The font that is used to display the "press any key" text.
-         *
-         * @type {string}
-         */
-        var SUB_FONT = "16px monospace";
-        /**
          * This class represents the game over screen. This is just a simple scene that jumps back to another
          * scene after telling you that the game is over.
          *
@@ -5956,19 +5950,29 @@ var nurdz;
              */
             function GameOver(stage) {
                 _super.call(this, "gameOver", stage);
-                /**
-                 * The index into the color list that indicates what color to use to render our blinking text.
-                 *
-                 * @type {number}
-                 */
-                this._colorIndex = 0;
-                /**
-                 * The list of colors that we use to display our blinking text.
-                 *
-                 * @type {Array<string>}
-                 */
-                this._colors = ['#ffffff', '#aaaaaa'];
+                // Set up our menu
+                this._menu = new game.Menu(stage, "Arial,Serif", 20);
+                this._menu.addItem("Try again", new game.Point(325, 350));
+                this._menu.addItem("Quit", new game.Point(325, 390));
+                // Make sure it gets render and update requests.
+                this.addActor(this._menu);
             }
+            Object.defineProperty(GameOver.prototype, "level", {
+                /**
+                 * Get the level that the game is currently at. In this scene, this represents the level that the
+                 * last game was at before it ended. This is queried by the title screen when we return to it so
+                 * that it can set the level to be what the player ended at if they quit.
+                 */
+                get: function () {
+                    // If we have a game scene and it has a level property, then return it.
+                    if (this._gameScene && this._gameScene["level"] != undefined)
+                        return this._gameScene["level"];
+                    // Return 0 by default.
+                    return 0;
+                },
+                enumerable: true,
+                configurable: true
+            });
             /**
              * This gets triggered when the stage changes from some other scene to our scene. We get told what
              * the previously active scene was. We use this to capture the game scene so that we can get it to
@@ -5981,20 +5985,6 @@ var nurdz;
                 // store the scene that game before us.
                 _super.prototype.activating.call(this, previousScene);
                 this._gameScene = previousScene;
-            };
-            /**
-             * Perform a frame update for our scene.
-             * @param tick the game tick; this is a count of how many times the game loop has executed
-             */
-            GameOver.prototype.update = function (tick) {
-                // Let the super update our child entities
-                _super.prototype.update.call(this, tick);
-                // Cycle to the next color if its time.
-                if (tick % 5 == 0) {
-                    this._colorIndex++;
-                    if (this._colorIndex == this._colors.length)
-                        this._colorIndex = 0;
-                }
             };
             /**
              * Display some text centered horizontally and vertically around the point provided, using the
@@ -6031,7 +6021,8 @@ var nurdz;
                     this._renderer.clear('black');
                 // Display our game over and press a key to restart text.
                 this.displayText(this._stage.width / 2, this._stage.height / 2, "Game Over", MAIN_FONT, 'white');
-                this.displayText(this._stage.width / 2, this._stage.height / 2 + (1.5 * game.TILE_SIZE), "Press enter", SUB_FONT, this._colors[this._colorIndex]);
+                // Get the menu to update
+                _super.prototype.render.call(this);
             };
             /**
              * Invoked to handle a key press. We use this to tell the stage to switch to the game scene again
@@ -6044,11 +6035,18 @@ var nurdz;
                 // If the super handles the key, we're done.
                 if (_super.prototype.inputKeyDown.call(this, eventObj))
                     return true;
-                if (eventObj.keyCode != game.KeyCodes.KEY_ENTER)
-                    return false;
-                // Switch to the game scene.
-                this._stage.switchToScene("game");
-                return true;
+                switch (eventObj.keyCode) {
+                    case game.KeyCodes.KEY_UP:
+                        this._menu.selectPrevious();
+                        return true;
+                    case game.KeyCodes.KEY_DOWN:
+                        this._menu.selectNext();
+                        return true;
+                    case game.KeyCodes.KEY_ENTER:
+                        this._stage.switchToScene(this._menu.selected == 0 ? "game" : "title");
+                        return true;
+                }
+                return false;
             };
             return GameOver;
         })(game.Scene);
