@@ -5516,6 +5516,9 @@ var nurdz;
              * @returns {boolean} true if the key was handled, false otherwise.
              */
             Game.prototype.inputKeyDown = function (eventObj) {
+                // If the super handles the key, we're done.
+                if (_super.prototype.inputKeyDown.call(this, eventObj))
+                    return true;
                 // If this is a key that is used to control the game, then this will handle it and return
                 // true, in which case we're done./
                 if (this.handleGameKey(eventObj.keyCode, true))
@@ -5525,10 +5528,6 @@ var nurdz;
                     // F1 toggles debug mode on and off.
                     case game.KeyCodes.KEY_F1:
                         this.toggleDebugState();
-                        return true;
-                    // F5 takes a screenshot.
-                    case game.KeyCodes.KEY_F5:
-                        this.screenshot("rx", "Rx Clone Screenshot");
                         return true;
                     // The C key cycles the segment color
                     case game.KeyCodes.KEY_C:
@@ -5879,6 +5878,9 @@ var nurdz;
              * @returns {boolean} always true
              */
             GameOver.prototype.inputKeyDown = function (eventObj) {
+                // If the super handles the key, we're done.
+                if (_super.prototype.inputKeyDown.call(this, eventObj))
+                    return true;
                 if (eventObj.keyCode != game.KeyCodes.KEY_ENTER)
                     return false;
                 // Switch to the game scene.
@@ -6041,6 +6043,9 @@ var nurdz;
              * @returns {boolean} true if we handled the key or false otherwise.
              */
             TitleScreen.prototype.inputKeyDown = function (eventObj) {
+                // If the super handles the key, we're done.
+                if (_super.prototype.inputKeyDown.call(this, eventObj))
+                    return true;
                 switch (eventObj.keyCode) {
                     case game.KeyCodes.KEY_UP:
                         this._menuSelection--;
@@ -6117,8 +6122,8 @@ var nurdz;
                 // Set up the stage.
                 var stage = new nurdz.game.Stage('gameContent');
                 // Set up the default values used for creating a screen shot.
-                nurdz.game.Stage.screenshotFilenameBase = "screenshot";
-                nurdz.game.Stage.screenshotWindowTitle = "Screenshot";
+                nurdz.game.Stage.screenshotFilenameBase = "rx";
+                nurdz.game.Stage.screenshotWindowTitle = "Rx Clone Screenshot";
                 // Set up the button that will stop the game if something goes wrong.
                 setupButton(stage, "controlBtn");
                 // Register all of our scenes.

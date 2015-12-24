@@ -73,28 +73,28 @@ module nurdz.game
         "1": [['m', 1, 0], [2, 0], [2, 5], [1, 5]],
 
         "2": [['m', 0, 0], [3, 0], [3, 3], [1, 3], [1, 4], [3, 4], [3, 5], [0, 5], [0, 2], [2, 2], [2, 1],
-              [0, 1]],
+            [0, 1]],
 
         "3": [['m', 0, 0], [3, 0], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3], [0, 3], [0, 2], [2, 2], [2, 1],
-              [0, 1]],
+            [0, 1]],
 
         "4": [['m', 0, 0], [1, 0], [1, 2], [2, 2], [2, 0], [3, 0], [3, 5], [2, 5], [2, 3], [0, 3]],
 
         "5": [['m', 0, 0], [3, 0], [3, 1], [1, 1], [1, 2], [3, 2], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3],
-              [0, 3]],
+            [0, 3]],
 
         "6": [['m', 0, 0], [3, 0], [3, 1], [1, 1], [1, 2], [3, 2], [3, 5], [0, 5], ['c'], ['m', 1, 3], [1, 4],
-              [2, 4], [2, 3]],
+            [2, 4], [2, 3]],
 
         "7": [['m', 0, 0], [3, 0], [3, 5], [2, 5], [2, 1], [1, 1], [1, 2], [0, 2]],
 
         "8": [['m', 0, 0], [3, 0], [3, 5], [0, 5], ['c'], ['m', 1, 1], [1, 2], [2, 2], [2, 1], ['c'],
-              ['m', 1, 3],
-              [1, 4], [2, 4], [2, 3]],
+            ['m', 1, 3],
+            [1, 4], [2, 4], [2, 3]],
 
         "9": [['m', 0, 0], [3, 0], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3], [0, 3], ['m', 1, 1], [1, 2],
-              [2, 2],
-              [2, 1]]
+            [2, 2],
+            [2, 1]]
     };
 
     /**
@@ -739,6 +739,10 @@ module nurdz.game
          */
         inputKeyDown (eventObj : KeyboardEvent) : boolean
         {
+            // If the super handles the key, we're done.
+            if (super.inputKeyDown (eventObj))
+                return true;
+
             // If this is a key that is used to control the game, then this will handle it and return
             // true, in which case we're done./
             if (this.handleGameKey (eventObj.keyCode, true))
@@ -750,11 +754,6 @@ module nurdz.game
                 // F1 toggles debug mode on and off.
                 case KeyCodes.KEY_F1:
                     this.toggleDebugState ();
-                    return true;
-
-                // F5 takes a screenshot.
-                case KeyCodes.KEY_F5:
-                    this.screenshot ("rx", "Rx Clone Screenshot");
                     return true;
 
                 // The C key cycles the segment color

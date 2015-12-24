@@ -221,6 +221,10 @@ module nurdz.game
          */
         inputKeyDown (eventObj : KeyboardEvent) : boolean
         {
+            // If the super handles the key, we're done.
+            if (super.inputKeyDown (eventObj))
+                return true;
+
             switch (eventObj.keyCode)
             {
                 case KeyCodes.KEY_UP:

@@ -59,8 +59,8 @@ module nurdz.main
             var stage = new game.Stage ('gameContent');
 
             // Set up the default values used for creating a screen shot.
-            game.Stage.screenshotFilenameBase = "screenshot";
-            game.Stage.screenshotWindowTitle = "Screenshot";
+            game.Stage.screenshotFilenameBase = "rx";
+            game.Stage.screenshotWindowTitle = "Rx Clone Screenshot";
 
             // Set up the button that will stop the game if something goes wrong.
             setupButton (stage, "controlBtn");
