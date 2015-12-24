@@ -45,21 +45,12 @@ module nurdz.game
         private _menu : Menu;
 
         /**
-         * Get the current level. This is the last set value, which may be what the user selected, or may
-         * be a higher value if an external caller has tweaked it.
-         *
-         * @returns {number}
+         * Get the level that the game is currently at. In this scene, this represents the level that the
+         * next game will be started at. It defaults to 0, gets modified by the user, and after a game it
+         * gets set to the last level achieved (although it caps at 20).
          */
         get level () : number
         { return this._level; }
-
-        /**
-         * Set the passed in level to be the level that the user has set.
-         *
-         * @param newLevel
-         */
-        set level (newLevel : number)
-        { this._level = newLevel; }
 
         /**
          * Construct the title screen scene.
@@ -73,7 +64,7 @@ module nurdz.game
 
             // Set up our menu.
             this._menu = new Menu (stage, "Arial,Serif", 40);
-            this._menu.addItem ("Change Level", new Point (150, 400));
+            this._menu.addItem ("Level: 0", new Point (150, 400));
             this._menu.addItem ("Start Game", new Point (150, 450));
 
             // Make sure it gets render and update requests.
@@ -81,6 +72,40 @@ module nurdz.game
 
             // default level.
             this._level = 0;
+        }
+
+        /**
+         * This is invoked when we become the active scene. If the scene that came before us has a level
+         * property, we use it to set our own level property. This allows us to return to the menu and
+         * have the player easily go back to where they started.
+         *
+         * @param previousScene the scene that used to be active.
+         */
+        activating (previousScene : Scene) : void
+        {
+            // Let the super debug log for us
+            super.activating (previousScene);
+
+            // Does the previous scene have a level property?
+            if (previousScene["level"] != undefined)
+            {
+                // Yes, use it to set our level. We cap at 20 as far as allowing the player to start where
+                // they left off.
+                this._level = previousScene["level"];
+                if (this._level > 20)
+                    this._level = 20;
+                this.updateMenu ();
+            }
+        }
+
+        /**
+         * This helper updates our menu to show what the currently selected level is.
+         */
+        private updateMenu () : void
+        {
+            let item = this._menu.getItem (0);
+            if (item)
+                item.text = "Level: " + this._level;
         }
 
         /**
@@ -166,8 +191,41 @@ module nurdz.game
                     this._menu.selectNext ();
                     return true;
 
+                case KeyCodes.KEY_LEFT:
+                    if (this._menu.selected == 0)
+                    {
+                        if (this._level > 0)
+                        {
+                            this._level--;
+                            this.updateMenu ();
+                        }
+                        return true;
+                    }
+                    return false;
+
+                case KeyCodes.KEY_RIGHT:
+                    if (this._menu.selected == 0)
+                    {
+                        if (this._level < 20)
+                        {
+                            this._level++;
+                            this.updateMenu ();
+                        }
+                        return true;
+                    }
+                    return false;
+
+
                 case KeyCodes.KEY_ENTER:
-                    if (this._menu.selected == 1)
+                    if (this._menu.selected == 0)
+                    {
+                        this._level++;
+                        if (this._level > 20)
+                            this._level = 0;
+                        this.updateMenu ();
+                        return true;
+                    }
+                    else
                     {
                         this._stage.switchToScene ("game");
                         return true;
