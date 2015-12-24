@@ -29,6 +29,7 @@
         "rx/entity/Bottle.ts",
         "rx/entity/Pointer.ts",
         "rx/entity/FloatingText.ts",
+        "rx/entity/Menu.ts",
         "rx/scenes/Game.ts",
         "rx/scenes/GameOver.ts",
         "rx/scenes/Title.ts",

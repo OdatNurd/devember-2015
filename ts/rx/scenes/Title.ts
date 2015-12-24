@@ -21,22 +21,6 @@ module nurdz.game
     const MENU_FONT = "40px Arial,Serif";
 
     /**
-     * A simple menu item structure.
-     */
-    interface MenuItem
-    {
-        /**
-         * The position of this menu item; the text starts at an offset to the right, this specifies where
-         * the menu pointer goes.
-         */
-        position: Point;
-
-        /**
-         * The displayed menu text.
-         */
-        text: string;
-    }
-    /**
      * This class represents the title screen. It allows the user to select the level that the game will
      * be played at.
      */
@@ -58,17 +42,7 @@ module nurdz.game
         /**
          * The list of menu items that we display to the user.
          */
-        private _menu : Array<MenuItem>;
-
-        /**
-         * The currently selected menu item.
-         */
-        private _menuSelection : number;
-
-        /**
-         * The menu pointer. We always position it so that it marks what the currently selected menu item is.
-         */
-        private _pointer : Pointer;
+        private _menu : Menu;
 
         /**
          * Get the current level. This is the last set value, which may be what the user selected, or may
@@ -98,35 +72,15 @@ module nurdz.game
             super ("titleScreen", stage);
 
             // Set up our menu.
-            this._menuSelection = 0;
-            this._menu = [
-                {
-                    position: new Point (150, 400),
-                    text: "Change Level (left/right arrows)"
-                },
-                {
-                    position: new Point (150, 450),
-                    text: "Start Game"
-                },
+            this._menu = new Menu (stage, "Arial,Serif", 40);
+            this._menu.addItem ("Change Level", new Point (150, 400));
+            this._menu.addItem ("Start Game", new Point (150, 450));
 
-            ];
-
-            // Set up the pointer.
-            this._pointer = new Pointer (stage, 0, 0);
-            this.updateMenuPointer ();
-            this.addActor (this._pointer);
+            // Make sure it gets render and update requests.
+            this.addActor (this._menu);
 
             // default level.
             this._level = 0;
-        }
-
-        /**
-         * Change the location of the menu pointer to point to the currently selected menu item.
-         */
-        private updateMenuPointer () : void
-        {
-            this._pointer.setStagePositionXY (this._menu[this._menuSelection].position.x,
-                                              this._menu[this._menuSelection].position.y);
         }
 
         /**
@@ -176,41 +130,18 @@ module nurdz.game
         }
 
         /**
-         * Render our menu text.
-         */
-        private renderMenu () : void
-        {
-            // Save the context and set up our font and font rendering.
-            this._renderer.context.save ();
-            this._renderer.context.font = MENU_FONT;
-            this._renderer.context.textBaseline = "middle";
-
-            // Render all of the text items. We offset them by the width of the pointer that indicates
-            // which item is the current item, with a vertical offset that is half of its height. This
-            // makes the point on the pointer align with the center of the text.
-            for (let i = 0 ; i < this._menu.length ; i++)
-            {
-                let item = this._menu[i];
-                this._renderer.drawTxt (item.text, item.position.x + TILE_SIZE,
-                                        item.position.y + (TILE_SIZE / 2), 'white');
-            }
-            this._renderer.restore ();
-        }
-
-        /**
          * Invoked to render us. We clear the screen, show some intro text, and we allow the user to
          * select a starting level.
          */
         render () : void
         {
-            // Clear the screen and let the super render our child entities.
+            // Clear the screen and render all of our text.
             this._renderer.clear ('black');
-            super.render ();
-
-            // Render our text.
             this.renderTitle ();
             this.renderInfoText ();
-            this.renderMenu ();
+
+            // Now let the super draw everything else, including our menu
+            super.render ();
         }
 
         /**
@@ -228,23 +159,16 @@ module nurdz.game
             switch (eventObj.keyCode)
             {
                 case KeyCodes.KEY_UP:
-                    this._menuSelection--;
-                    if (this._menuSelection < 0)
-                        this._menuSelection = this._menu.length - 1;
-                    this.updateMenuPointer ();
+                    this._menu.selectPrevious ();
                     return true;
 
-                    case KeyCodes.KEY_DOWN:
-                        this._menuSelection++;
-                        if (this._menuSelection >= this._menu.length)
-                            this._menuSelection = 0;
-                        this.updateMenuPointer ();
-                        return true;
+                case KeyCodes.KEY_DOWN:
+                    this._menu.selectNext ();
+                    return true;
 
                 case KeyCodes.KEY_ENTER:
-                    if (this._menuSelection == 1)
+                    if (this._menu.selected == 1)
                     {
-                        // TODO this does not work properly; the game is already set up at this point
                         this._stage.switchToScene ("game");
                         return true;
                     }

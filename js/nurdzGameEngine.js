@@ -5045,6 +5045,128 @@ var nurdz;
     var game;
     (function (game) {
         /**
+         * This class represents a menu. This is responsible for rendering menu items and handling key input
+         * while a menu is active.
+         */
+        var Menu = (function (_super) {
+            __extends(Menu, _super);
+            /**
+             * Construct a new menu which renders its menu text with the font name and size provided.
+             *
+             * @param stage the stage that will display this menu
+             * @param fontName the font name to render the menu with
+             * @param fontSize the size of the font to use to render items, in pixels
+             */
+            function Menu(stage, fontName, fontSize) {
+                // Simple super call. We don't have a visual position per se.
+                _super.call(this, "Menu", stage, 0, 0, 0, 0);
+                // Store the values provided.
+                this._fontName = fontName;
+                this._fontSize = fontSize;
+                // Combine them together into a single string for later use
+                this._fontFullSpec = this._fontSize + "px " + this._fontName;
+                // The menu starts out empty.
+                this._items = [];
+                this._selected = 0;
+                // Set up the pointer.
+                this._pointer = new game.Pointer(stage, 0, 0);
+            }
+            Object.defineProperty(Menu.prototype, "selected", {
+                /**
+                 * Return the menu item index at the currently selected location.
+                 *
+                 * @returns {number}
+                 */
+                get: function () { return this._selected; },
+                enumerable: true,
+                configurable: true
+            });
+            /**
+             * Change the location of the menu pointer to point to the currently selected menu item.
+             */
+            Menu.prototype.updateMenuPointer = function () {
+                if (this._items.length > 0)
+                    this._pointer.setStagePositionXY(this._items[this._selected].position.x, this._items[this._selected].position.y);
+            };
+            /**
+             * Add a new menu item to the list of menu items managed by this menu instance.
+             *
+             * @param text the text of the menu item
+             * @param position the position on the screen of this item.
+             */
+            Menu.prototype.addItem = function (text, position) {
+                // Insert the menu item
+                this._items.push({
+                    text: text,
+                    position: position
+                });
+                // If the current length of the items array is now 1, the first item is finally here, so
+                // position our pointer.
+                if (this._items.length == 1)
+                    this.updateMenuPointer();
+            };
+            /**
+             * Change the selected menu item to the previous item, if possible.
+             */
+            Menu.prototype.selectPrevious = function () {
+                this._selected--;
+                if (this._selected < 0)
+                    this._selected = this._items.length - 1;
+                this.updateMenuPointer();
+            };
+            /**
+             * Change the selected menu item to the next item, if possible.
+             */
+            Menu.prototype.selectNext = function () {
+                this._selected++;
+                if (this._selected >= this._items.length)
+                    this._selected = 0;
+                this.updateMenuPointer();
+            };
+            /**
+             * Update the state of the menu based on the current tick; we use this to visually mark the
+             * currently selected menu item.
+             *
+             * @param stage the stage that owns us
+             * @param tick the current update tick
+             */
+            Menu.prototype.update = function (stage, tick) {
+                // Make sure our pointer updates
+                this._pointer.update(stage, tick);
+            };
+            /**
+             * Render ourselves using the provided renderer. This will render out the text as well as the
+             * current pointer.
+             *
+             * The position provided to us is ignored; we already have an idea of where exactly our contents
+             * will render.
+             */
+            Menu.prototype.render = function (x, y, renderer) {
+                // Render the pointer at its current position.
+                this._pointer.render(this._pointer.position.x, this._pointer.position.y, renderer);
+                // Save the context and set up our font and font rendering.
+                renderer.context.save();
+                renderer.context.font = this._fontFullSpec;
+                renderer.context.textBaseline = "middle";
+                // Render all of the text items. We offset them by the width of the pointer that indicates
+                // which item is the current item, with a vertical offset that is half of its height. This
+                // makes the point on the pointer align with the center of the text.
+                for (var i = 0; i < this._items.length; i++) {
+                    var item = this._items[i];
+                    renderer.drawTxt(item.text, item.position.x + game.TILE_SIZE, item.position.y + (game.TILE_SIZE / 2), 'white');
+                }
+                renderer.restore();
+            };
+            return Menu;
+        })(game.Actor);
+        game.Menu = Menu;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
+    var game;
+    (function (game) {
+        /**
          * The width of the pill bottle, in pills (tiles).
          *
          * @type {number}
@@ -5928,21 +6050,11 @@ var nurdz;
                 // Let the super do some setup
                 _super.call(this, "titleScreen", stage);
                 // Set up our menu.
-                this._menuSelection = 0;
-                this._menu = [
-                    {
-                        position: new game.Point(150, 400),
-                        text: "Change Level (left/right arrows)"
-                    },
-                    {
-                        position: new game.Point(150, 450),
-                        text: "Start Game"
-                    },
-                ];
-                // Set up the pointer.
-                this._pointer = new game.Pointer(stage, 0, 0);
-                this.updateMenuPointer();
-                this.addActor(this._pointer);
+                this._menu = new game.Menu(stage, "Arial,Serif", 40);
+                this._menu.addItem("Change Level", new game.Point(150, 400));
+                this._menu.addItem("Start Game", new game.Point(150, 450));
+                // Make sure it gets render and update requests.
+                this.addActor(this._menu);
                 // default level.
                 this._level = 0;
             }
@@ -5963,12 +6075,6 @@ var nurdz;
                 enumerable: true,
                 configurable: true
             });
-            /**
-             * Change the location of the menu pointer to point to the currently selected menu item.
-             */
-            TitleScreen.prototype.updateMenuPointer = function () {
-                this._pointer.setStagePositionXY(this._menu[this._menuSelection].position.x, this._menu[this._menuSelection].position.y);
-            };
             /**
              * Render the name of the game to the screen.
              */
@@ -6007,34 +6113,16 @@ var nurdz;
                 this._renderer.restore();
             };
             /**
-             * Render our menu text.
-             */
-            TitleScreen.prototype.renderMenu = function () {
-                // Save the context and set up our font and font rendering.
-                this._renderer.context.save();
-                this._renderer.context.font = MENU_FONT;
-                this._renderer.context.textBaseline = "middle";
-                // Render all of the text items. We offset them by the width of the pointer that indicates
-                // which item is the current item, with a vertical offset that is half of its height. This
-                // makes the point on the pointer align with the center of the text.
-                for (var i = 0; i < this._menu.length; i++) {
-                    var item = this._menu[i];
-                    this._renderer.drawTxt(item.text, item.position.x + game.TILE_SIZE, item.position.y + (game.TILE_SIZE / 2), 'white');
-                }
-                this._renderer.restore();
-            };
-            /**
              * Invoked to render us. We clear the screen, show some intro text, and we allow the user to
              * select a starting level.
              */
             TitleScreen.prototype.render = function () {
-                // Clear the screen and let the super render our child entities.
+                // Clear the screen and render all of our text.
                 this._renderer.clear('black');
-                _super.prototype.render.call(this);
-                // Render our text.
                 this.renderTitle();
                 this.renderInfoText();
-                this.renderMenu();
+                // Now let the super draw everything else, including our menu
+                _super.prototype.render.call(this);
             };
             /**
              * Triggers on a key press
@@ -6048,20 +6136,13 @@ var nurdz;
                     return true;
                 switch (eventObj.keyCode) {
                     case game.KeyCodes.KEY_UP:
-                        this._menuSelection--;
-                        if (this._menuSelection < 0)
-                            this._menuSelection = this._menu.length - 1;
-                        this.updateMenuPointer();
+                        this._menu.selectPrevious();
                         return true;
                     case game.KeyCodes.KEY_DOWN:
-                        this._menuSelection++;
-                        if (this._menuSelection >= this._menu.length)
-                            this._menuSelection = 0;
-                        this.updateMenuPointer();
+                        this._menu.selectNext();
                         return true;
                     case game.KeyCodes.KEY_ENTER:
-                        if (this._menuSelection == 1) {
-                            // TODO this does not work properly; the game is already set up at this point
+                        if (this._menu.selected == 1) {
                             this._stage.switchToScene("game");
                             return true;
                         }
