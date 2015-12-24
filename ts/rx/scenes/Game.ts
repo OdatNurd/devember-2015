@@ -295,6 +295,13 @@ module nurdz.game
         }
 
         /**
+         * Get the level that the game is currently at. In this scene, this represents the actual level
+         * that is being played right now.
+         */
+        get level () : number
+        { return this._level; }
+
+        /**
          * Construct a new game scene.
          *
          * @param stage the stage that manages this scene
@@ -349,7 +356,7 @@ module nurdz.game
             this._segments[SegmentType.EMPTY].properties.debug = true;
             this._segments[SegmentType.VIRUS].virusPolygon = 2;
 
-            // Create our pointer pointing to the selected segment in the segment l`ist. We also want it to
+            // Create our pointer pointing to the selected segment in the segment list. We also want it to
             // be invisible by default
             this._pointer = new Pointer (stage,
                 this._segments[this._segmentIndex].position.x,
@@ -406,9 +413,6 @@ module nurdz.game
             this.addActor (this._bottle);
             this.addActor (this._capsule);
             this.addActor (this._nextCapsule);
-
-            // Start a new level generating.
-            this.startNewLevel (10);
         }
 
         /**
@@ -420,6 +424,12 @@ module nurdz.game
         {
             // Let the super do things so we get debug messages
             super.activating (previousScene);
+
+            // If the previous scene has a level property, it's the title screen. In that case, we want to
+            // set our level to be what its level is prior to restarting.
+            let newLevel = previousScene["level"];
+            if (newLevel != undefined)
+                this._level = newLevel;
 
             // Restart the game; we're either restarting after a game over or coming in from the title screen.
             this.restartGame ();
