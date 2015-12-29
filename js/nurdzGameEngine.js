@@ -191,92 +191,6 @@ var nurdz;
         var KeyCodes = game.KeyCodes;
     })(game = nurdz.game || (nurdz.game = {}));
 })(nurdz || (nurdz = {}));
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
-var nurdz;
-(function (nurdz) {
-    var game;
-    (function (game) {
-        /**
-         * This is a simple class whose purpose is to wrap an audio element to make it a little easier to work
-         * with (and shield audio tag properties from modification).
-         */
-        var Sound = (function () {
-            /**
-             * Construct a new sound object, telling it to wrap the provided audio tag, which it will use for
-             * its playback.
-             *
-             * @param audioTag the audio tag that represents the sound to be played.
-             */
-            function Sound(audioTag) {
-                this._tag = audioTag;
-            }
-            Object.defineProperty(Sound.prototype, "isPlaying", {
-                /**
-                 * Determines if this sound is currently playing or not.
-                 *
-                 * @returns {boolean}
-                 */
-                get: function () { return this._tag.paused == false; },
-                enumerable: true,
-                configurable: true
-            });
-            /**
-             * Plays the sound. If it is already playing, it will be restarted.
-             */
-            Sound.prototype.play = function () {
-                // Play the sound, but make sure that it starts at the beginning.
-                this._tag.currentTime = 0;
-                this._tag.play();
-            };
-            /**
-             * Pause playback of the sound.
-             */
-            Sound.prototype.pause = function () {
-                this._tag.pause();
-            };
-            /**
-             * Toggle the state of the sound; if it is playing, it will be paused, otherwisse it will start
-             * playing.
-             *
-             * When the sound restarts, it will be started at the beginning.
-             *
-             * This method is generally used for longer sounds that you might want to cut off (e.g. music).
-             */
-            Sound.prototype.toggle = function () {
-                if (this.isPlaying)
-                    this.pause();
-                else
-                    this.play();
-            };
-            return Sound;
-        })();
-        game.Sound = Sound;
-        /**
-         * This is a simple class whose purpose is to wrap an audio element that is meant to be used as music.
-         * This has a slightly different API than a regular sound.
-         */
-        var Music = (function (_super) {
-            __extends(Music, _super);
-            /**
-             * Construct a new music object, telling it to wrap the provided audio tag as music, which it will
-             * use for its playback.
-             *
-             * @param audioTag the audio tag that represents the music to play
-             */
-            function Music(audioTag) {
-                // Invoke the super to set up, then make sure that this audio element loops when we play it.
-                _super.call(this, audioTag);
-                this._tag.loop = true;
-            }
-            return Music;
-        })(Sound);
-        game.Music = Music;
-    })(game = nurdz.game || (nurdz.game = {}));
-})(nurdz || (nurdz = {}));
 var nurdz;
 (function (nurdz) {
     var game;
@@ -314,10 +228,10 @@ var nurdz;
             var _imagePreloadList = {};
             /**
              * The list of sounds (and music, which is a special case of sound) to be preloaded.
-             * @type {Object<string,HTMLAudioElement>}
+             * @type {Array<SoundPreload>}
              * @private
              */
-            var _soundPreloadList = {};
+            var _soundPreloadList = [];
             /**
              * The number of images that still need to be loaded before all images are considered loaded. This
              * gets incremented as preloads are added and decremented as loads are completed.
@@ -414,24 +328,19 @@ var nurdz;
                 // Make sure that preloading has not started.
                 if (_preloadStarted)
                     throw new Error("Cannot add sounds after preloading has already begun or started");
-                // Create a key that is the URL that we will be loading, and then see if there is a tag already in
-                // the preload dictionary that uses that URL.
-                var key = subFolder + filename + _audioExtension;
-                var tag = _soundPreloadList[key];
-                // If there is not already a tag, then we need to create a new one.
-                if (tag == null) {
-                    console.log("Creating tag for", key);
-                    // Create a new tag, indicate the function to invoke when it is fully loaded, and then add it
-                    // to the preload list.
-                    tag = document.createElement("audio");
-                    tag.addEventListener("canplaythrough", soundLoaded);
-                    _soundPreloadList[key] = tag;
-                    console.log("Done", tag);
-                    // This counts as a sound that we are going to preload.
-                    _soundsToLoad++;
-                }
+                // Create a sound preload object.
+                var preload = {
+                    src: subFolder + filename + _audioExtension,
+                    tag: document.createElement("audio")
+                };
+                // Set up an event listener to ensure that once the sound can play through, we mark it as loaded
+                // enough for our purposes.
+                preload.tag.addEventListener("canplaythrough", soundLoaded);
+                // Insert it into the sound preload list and count it as a sound to be preloaded.
+                _soundPreloadList.push(preload);
+                _soundsToLoad++;
                 // Return the tag back to the caller so that they can play it later.
-                return tag;
+                return preload.tag;
             };
             /**
              * Add the sound filename specified to the list of sounds that will be preloaded. The "filename" is
@@ -464,7 +373,8 @@ var nurdz;
              * an OGG version of the same file, and provide a filename that has no extension on it. The code in
              * this method will apply the correct extension based on the browser in use and load the appropriate file.
              *
-             * The return value is a music object that can be used to play the music once it's loaded.
+             * This works identically to addSound() except that the sound returned is set to play looped by
+             * default.
              *
              * @param filename the filename of the sound to load; assumed to be relative to a sounds/ folder in
              * the same path as the page is in and to have no extension
@@ -473,7 +383,7 @@ var nurdz;
              * @see addSound
              */
             function addMusic(filename) {
-                return new game.Music(doAddSound("music/", filename));
+                return new game.Sound(doAddSound("music/", filename), true);
             }
             Preloader.addMusic = addMusic;
             /**
@@ -499,10 +409,9 @@ var nurdz;
                     if (_imagePreloadList.hasOwnProperty(key))
                         _imagePreloadList[key].src = key;
                 }
-                for (var key in _soundPreloadList) {
-                    if (_soundPreloadList.hasOwnProperty(key))
-                        _soundPreloadList[key].src = key;
-                }
+                // For sounds they're in an array instead of an object so that we can load duplicates.
+                for (var i = 0; i < _soundPreloadList.length; i++)
+                    _soundPreloadList[i].tag.src = _soundPreloadList[i].src;
             }
             Preloader.commence = commence;
         })(Preloader = game.Preloader || (game.Preloader = {}));
@@ -1082,6 +991,11 @@ var nurdz;
         game.Actor = Actor;
     })(game = nurdz.game || (nurdz.game = {}));
 })(nurdz || (nurdz = {}));
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
 var nurdz;
 (function (nurdz) {
     var game;
@@ -2354,6 +2268,8 @@ var nurdz;
                 };
                 // We don't start off having done a preload.
                 this._didPreload = false;
+                // Set up the list of sounds.
+                this._knownSounds = [];
                 // Set up our scene manager object.
                 this._sceneManager = new game.SceneManager(this);
                 // Obtain the container element that we want to insert the canvas into.
@@ -2435,7 +2351,20 @@ var nurdz;
                  *
                  * @returns {Scene}
                  */
-                get: function () { return this._sceneManager.currentScene; },
+                get: function () {
+                    // When the game loop is not running, no scene switches can happen. Primarily this happens
+                    // during engine setup.
+                    //
+                    // When that happens, if the scene manager thinks that there is an upcoming scene change, we
+                    // report that to be the current scene because that is what WOULD be the current scene if we
+                    // were running.
+                    //
+                    // When this is not the case, OR it is the case but there is no next scene, whatever the scene
+                    // manager thinks is the current scene is good enough for us.
+                    return _gameTimerID != null
+                        ? this._sceneManager.currentScene
+                        : (this._sceneManager.nextScene || this._sceneManager.currentScene);
+                },
                 enumerable: true,
                 configurable: true
             });
@@ -2508,6 +2437,149 @@ var nurdz;
                 this.disableInputEvents(this._canvas);
             };
             /**
+             * Request preloading of an image filename. When the run() method is invoked, the game loop will
+             * not start until all images requested by this method call are available.
+             *
+             * Images are expected to be in a folder named "images/" inside of the folder that the game page
+             * is served from, so only a filename and extension is required.
+             *
+             * Requests for preloads of the same image multiple times cause the same image element to be
+             * returned each time, since image drawing is non-destructive.
+             *
+             * This is just a proxy for the Preloader.addImage() method, placed here for convenience.
+             *
+             * @param filename the filename of the image to load
+             * @returns {HTMLImageElement} the image element that will contain the image once it is loaded
+             * @see Preloader.addImage
+             */
+            Stage.prototype.preloadImage = function (filename) {
+                return game.Preloader.addImage(filename);
+            };
+            /**
+             * Request that the stage preload a sound file for later playback and also implicitly add it to the
+             * list of known sounds for later sound manipulation with the stage sound API.
+             *
+             * Sounds are expected to be in a folder named "sounds/" inside of the folder that the game page is
+             * served from. You should not specify an extension on the filename as the system will determine what
+             * the browser can play and load the appropriate file for you.
+             *
+             * Unlike images, requests for sound preloads of the same sound do not share the same tag so that the
+             * playback properties of individual sounds can be manipulated individually.
+             *
+             * This is just a simple proxy for the Preloader.addSound() method which invokes Stage.addSound() for
+             * you.
+             *
+             * @param filename the filename of the sound to load
+             * @returns {Sound} the preloaded sound object
+             * @see Preloader.addSound
+             * @see Stage.addSound
+             */
+            Stage.prototype.preloadSound = function (filename) {
+                return this.addSound(game.Preloader.addSound(filename));
+            };
+            /**
+             * Request that the stage preload a music file for later playback and also implicitly add it to the
+             * list of known sounds for later sound manipulation with the stage sound API.
+             *
+             * NOTE: Music is just a regular Sound object that is set to loop by default
+             *
+             * Music is expected to be in a folder named "music/" inside of the folder that the game page is
+             * served from. You should not specify an extension on the filename as the system will determine what
+             * the browser can play and load the appropriate file for you.
+             *
+             * Unlike images, requests for music preloads of the same music do not share the same tag so that
+             * the playback properties of individual songs can be manipulated individually.
+             *
+             * This is just a simple proxy for the Preloader.addMusic() method which invokes Stage.addSound()
+             * for you.
+             *
+             * @param filename the filename of the music to load
+             * @returns {Sound} the preloaded sound object
+             * @see Preloader.addMusic
+             * @see Stage.addSound
+             */
+            Stage.prototype.preloadMusic = function (filename) {
+                return this.addSound(game.Preloader.addMusic(filename));
+            };
+            /**
+             * Add a sound object to the list of sound objects known by the stage. Only sound objects that the
+             * stage knows about will be manipulated by the stage sound API functions.
+             *
+             * This is invoked automatically for sounds that you have asked the stage to preload for you, but
+             * you need to invoke it manually if you use the preloader directly.
+             *
+             * This does not do a check to see if the sound object provided is already managed by the stage.
+             *
+             * @param sound the sound object to register with the stage
+             * @returns {Sound} the sound object that was registered, for convenience in chained method calls
+             * @see Stage.preloadSound
+             * @see Stage.preloadMusic
+             * @see Preloader.addSound
+             * @see Preloader.addMusic
+             */
+            Stage.prototype.addSound = function (sound) {
+                this._knownSounds.push(sound);
+                return sound;
+            };
+            /**
+             * Iterate all of the sounds known to the stage and toggle their mute stage.
+             *
+             * This only mutes known sound objects which are not flagged as being music so that the mute state of
+             * music and sound can be toggled independently.
+             *
+             * The mute state of all such sounds is set to the state passed in.
+             *
+             * @param mute true to mute all sounds or false to un-mute all sounds
+             */
+            Stage.prototype.muteSounds = function (mute) {
+                for (var i = 0; i < this._knownSounds.length; i++) {
+                    if (this._knownSounds[i].isMusic == false)
+                        this._knownSounds[i].muted = mute;
+                }
+            };
+            /**
+             * Iterate all of the sounds known to the stage and change their volume
+             *
+             * This only changes the volume of sounds which are not flagged as being music so that the volume
+             * of music and sound can be changed independently.
+             *
+             * @param volume the new volume level for all sounds (0.0 to 1.0)
+             */
+            Stage.prototype.soundVolume = function (volume) {
+                for (var i = 0; i < this._knownSounds.length; i++) {
+                    if (this._knownSounds[i].isMusic == false)
+                        this._knownSounds[i].volume = volume;
+                }
+            };
+            /**
+             * Iterate all of the music known to the stage and toggle their mute stage.
+             *
+             * This only mutes known sound objects which are flagged as being music so that the mute state of
+             * music and sound an be toggled independently.
+             *
+             * @param mute true to mute all music or false to un-mute all music
+             */
+            Stage.prototype.muteMusic = function (mute) {
+                for (var i = 0; i < this._knownSounds.length; i++) {
+                    if (this._knownSounds[i].isMusic == true)
+                        this._knownSounds[i].muted = mute;
+                }
+            };
+            /**
+             * Iterate all of the music known to the stage and change their volume.
+             *
+             * This only changes the volume of sounds which are flagged as being music so that the volume of
+             * music and sound can be changed independently.
+             *
+             * @param volume the new volume level for all sounds (0.0 to 1.0)
+             */
+            Stage.prototype.musicVolume = function (volume) {
+                for (var i = 0; i < this._knownSounds.length; i++) {
+                    if (this._knownSounds[i].isMusic == true)
+                        this._knownSounds[i].volume = volume;
+                }
+            };
+            /**
              * Register a scene object with the stage using a textual name. This scene can then be switched to
              * via the switchToScene method.
              *
@@ -2540,12 +2612,11 @@ var nurdz;
             Stage.prototype.switchToScene = function (sceneName) {
                 if (sceneName === void 0) { sceneName = null; }
                 // Indicate that we want to switch to the scene provided.
+                //
+                // This tells the scene manager that the next time we call checkSceneSwitch() we want this to
+                // be the active scene. That happens in the game loop, to make sure that it doesn't happen
+                // mid-loop.
                 this._sceneManager.switchToScene(sceneName);
-                // If the game is not currently running, then perform the switch right now; external code
-                // might want to switch the scene while the game is not running and we want the currentScene
-                // property to track property.
-                if (_gameTimerID == null)
-                    this._sceneManager.checkSceneSwitch();
             };
             /**
              * Open a new tab/window that displays the current contents of the stage. The generated page will
@@ -2696,6 +2767,18 @@ var nurdz;
                  * @returns {Scene} the current scene
                  */
                 get: function () { return this._currentScene; },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(SceneManager.prototype, "nextScene", {
+                /**
+                 * The scene that will imminently become active the next time a scene change check is scheduled.
+                 *
+                 * This value is null when there is no pending scene change yet.
+                 *
+                 * @returns {Scene}
+                 */
+                get: function () { return this._nextScene; },
                 enumerable: true,
                 configurable: true
             });
@@ -3387,6 +3470,154 @@ var nurdz;
             return Level;
         })();
         game.Level = Level;
+    })(game = nurdz.game || (nurdz.game = {}));
+})(nurdz || (nurdz = {}));
+var nurdz;
+(function (nurdz) {
+    var game;
+    (function (game) {
+        /**
+         * This class wraps an HTML audio tag to provide an extended API for sound and music playing. This
+         * shields the client code from having to work with the tag directly and provides an enhanced API.
+         */
+        var Sound = (function () {
+            /**
+             * Construct a new sound object, telling it to wrap the provided audio tag, which it will use for
+             * its playback.
+             *
+             * You can specify if this sound is meant to be used as music, in which case it will loop by default.
+             *
+             * @param audioTag the audio tag that represents the sound to be played.
+             * @param isMusic true if this sound will be used to play back music
+             */
+            function Sound(audioTag, isMusic) {
+                if (isMusic === void 0) { isMusic = false; }
+                // Save the tag and type
+                this._tag = audioTag;
+                this._isMusic = isMusic;
+                // If this is music, set us to loop by default
+                if (isMusic)
+                    this._tag.loop = true;
+            }
+            Object.defineProperty(Sound.prototype, "isMusic", {
+                /**
+                 * Determine if this sound represents music or not.
+                 *
+                 * @returns {boolean}
+                 */
+                get: function () { return this._isMusic; },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Sound.prototype, "isPlaying", {
+                /**
+                 * Determines if this sound is currently playing or not.
+                 *
+                 * @returns {boolean}
+                 */
+                get: function () { return this._tag.paused == false; },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Sound.prototype, "volume", {
+                /**
+                 * Get the current volume that this sound is playing at. This ranges between 0 and 1.
+                 *
+                 * @returns {number}
+                 */
+                get: function () { return this._tag.volume; },
+                /**
+                 * Set the volume that this sound plays back on, which should be a value between 0 and 1.
+                 *
+                 * @param newVolume the new volume level for the sound (0.0 to 1.0)
+                 */
+                set: function (newVolume) {
+                    this._tag.volume = newVolume;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Sound.prototype, "loop", {
+                /**
+                 * Determines if this sound loops during playback or not.
+                 *
+                 * @returns {boolean}
+                 */
+                get: function () { return this._tag.loop; },
+                /**
+                 * Change the state of looping for this sound. When true, playback will loop continuously until
+                 * told to stop.
+                 *
+                 * @param newLoop the new loop state (true to loop playback, false to play once and stop)
+                 */
+                set: function (newLoop) { this._tag.loop = newLoop; },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Sound.prototype, "muted", {
+                /**
+                 * Determine if this sound object is currently muted or not.
+                 *
+                 * @returns {boolean}
+                 */
+                get: function () { return this._tag.muted; },
+                /**
+                 * Change the mute state of this object.
+                 *
+                 * @param newMuted the new muted state (true for mute, false for un-muted)
+                 */
+                set: function (newMuted) { this._tag.muted = newMuted; },
+                enumerable: true,
+                configurable: true
+            });
+            /**
+             * Start the sound playing, optionally also restarting the playback from the beginning if it is
+             * already playing.
+             *
+             * The restart parameter can be used to restart playback from the beginning; this is useful if the
+             * sound is already playing and you want it to immediately restart or if the sound is paused and
+             * you want playback to start from the beginning and not the pause point.
+             *
+             *
+             * When the sound is already playing and the parameter passed in is false, this call effectively
+             * does nothing.
+             *
+             * @param restart true to start the sound playing from the beginning or false to leave the current
+             * play position alone
+             */
+            Sound.prototype.play = function (restart) {
+                if (restart === void 0) { restart = true; }
+                // Change the current playback time if we were asked to.
+                if (restart)
+                    this._tag.currentTime = 0;
+                // Play it now
+                this._tag.play();
+            };
+            /**
+             * Pause playback of the sound.
+             */
+            Sound.prototype.pause = function () {
+                this._tag.pause();
+            };
+            /**
+             * Toggle the play state of the sound; if it is currently playing, it will be paused, otherwise it
+             * will start playing. The restart parameter can be used to cause paused playback to restart at
+             * the beginning of the sound and has no effect if the sound is already playing.
+             *
+             * This method is generally used for longer sounds that you might want to cut off (e.g. music).
+             *
+             * @see Sound.play
+             */
+            Sound.prototype.toggle = function (restart) {
+                if (restart === void 0) { restart = true; }
+                if (this.isPlaying)
+                    this.pause();
+                else
+                    this.play(restart);
+            };
+            return Sound;
+        })();
+        game.Sound = Sound;
     })(game = nurdz.game || (nurdz.game = {}));
 })(nurdz || (nurdz = {}));
 var nurdz;
