@@ -179,6 +179,20 @@ module nurdz.game
         private _music : Sound;
 
         /**
+         * Capsule related sounds; one for when the capsule slides left or right, rotates, and drops
+         * (lands in its final locked in position prior to matches being found).
+         */
+        private _sndCapSlide : Sound;
+        private _sndCapRotate : Sound;
+        private _sndCapDrop : Sound;
+
+        /**
+         * Match related sounds; one for when a match includes a virus and one where it does not.
+         */
+        private _sndMatchVirus : Sound;
+        private _sndMatchEmpty : Sound;
+
+        /**
          * The score for the current game.
          */
         private _score : number;
@@ -306,6 +320,7 @@ module nurdz.game
         get level () : number
         { return this._level; }
 
+
         /**
          * Construct a new game scene.
          *
@@ -319,6 +334,11 @@ module nurdz.game
 
             // Preload all of our resources.
             this._music = stage.preloadMusic ("Pixelland");
+            this._sndCapSlide = stage.preloadSound ("capsule_slide");
+            this._sndCapRotate = stage.preloadSound ("capsule_rotate");
+            this._sndCapDrop = stage.preloadSound ("capsule_drop");
+            this._sndMatchVirus = stage.preloadSound ("match_virus");
+            this._sndMatchEmpty = stage.preloadSound ("match_segment");
 
             // We are neither generating a level nor allowing capsule control right now
             this._generatingLevel = false;
@@ -554,6 +574,9 @@ module nurdz.game
                     // we are.
                     if (this._capsule.drop () == false)
                     {
+                        // Play the drop sound.
+                        this._sndCapDrop.play ();
+
                         // If the capsule is currently still outside the bottle, then the bottle is all filled
                         // up, and so the game is now over.
                         if (this._capsule.mapPosition.y < 0)
@@ -593,22 +616,26 @@ module nurdz.game
             else if (this._keys[InputKey.LEFT])
             {
                 this._keys[InputKey.LEFT] = false;
-                this._capsule.slide (true);
+                if (this._capsule.slide (true))
+                    this._sndCapSlide.play ();
             }
             else if (this._keys[InputKey.RIGHT])
             {
                 this._keys[InputKey.RIGHT] = false;
-                this._capsule.slide (false);
+                if (this._capsule.slide (false))
+                    this._sndCapSlide.play ();
             }
             else if (this._keys[InputKey.ROTATE_LEFT])
             {
                 this._keys[InputKey.ROTATE_LEFT] = false;
-                this._capsule.rotate (true);
+                if (this._capsule.rotate (true))
+                    this._sndCapRotate.play ();
             }
             else if (this._keys[InputKey.ROTATE_RIGHT])
             {
                 this._keys[InputKey.ROTATE_RIGHT] = false;
-                this._capsule.rotate (false);
+                if (this._capsule.rotate (false))
+                    this._sndCapRotate.play ();
             }
         }
 
@@ -1028,6 +1055,13 @@ module nurdz.game
         {
             const PER_VIRUS_SCORE = 200;
             const CASCADE_MULTIPLIER_BONUS = [1, 2, 2.5, 3];
+
+            // Play an appropriate sound for this match. This has to happen first since we're going to
+            // fiddle the virus count below when we take score.
+            if (virusesRemoved == 0)
+                this._sndMatchEmpty.play ();
+            else
+                this._sndMatchVirus.play ();
 
             // Constrain the cascade length to the maximum allowable bonus.
             if (cascadeLength >= CASCADE_MULTIPLIER_BONUS.length)

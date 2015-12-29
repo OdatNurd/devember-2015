@@ -329,7 +329,7 @@ module nurdz.game
          */
         slide (left : boolean) : boolean
         {
-            // If we can drop, set our new map position. This will cause the stage position to be
+            // If we can slide, set our new map position. This will cause the stage position to be
             // recalculated so that we actually visually change our location.
             if (this.canSlide (left))
             {
@@ -337,6 +337,8 @@ module nurdz.game
                     this.setMapPositionXY (this._mapPosition.x - 1, this._mapPosition.y);
                 else
                     this.setMapPositionXY (this._mapPosition.x + 1, this._mapPosition.y);
+
+                return true;
             }
 
             return false;

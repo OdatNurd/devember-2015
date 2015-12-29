@@ -4333,13 +4333,14 @@ var nurdz;
              * @returns {boolean} true if the capsule actually slid, or false otherwise
              */
             Capsule.prototype.slide = function (left) {
-                // If we can drop, set our new map position. This will cause the stage position to be
+                // If we can slide, set our new map position. This will cause the stage position to be
                 // recalculated so that we actually visually change our location.
                 if (this.canSlide(left)) {
                     if (left)
                         this.setMapPositionXY(this._mapPosition.x - 1, this._mapPosition.y);
                     else
                         this.setMapPositionXY(this._mapPosition.x + 1, this._mapPosition.y);
+                    return true;
                 }
                 return false;
             };
@@ -5884,6 +5885,11 @@ var nurdz;
                 _super.call(this, "game", stage);
                 // Preload all of our resources.
                 this._music = stage.preloadMusic("Pixelland");
+                this._sndCapSlide = stage.preloadSound("capsule_slide");
+                this._sndCapRotate = stage.preloadSound("capsule_rotate");
+                this._sndCapDrop = stage.preloadSound("capsule_drop");
+                this._sndMatchVirus = stage.preloadSound("match_virus");
+                this._sndMatchEmpty = stage.preloadSound("match_segment");
                 // We are neither generating a level nor allowing capsule control right now
                 this._generatingLevel = false;
                 this._controllingCapsule = false;
@@ -6087,6 +6093,8 @@ var nurdz;
                         // Try to drop the capsule. If this doesn't work, we can't move down any more from where
                         // we are.
                         if (this._capsule.drop() == false) {
+                            // Play the drop sound.
+                            this._sndCapDrop.play();
                             // If the capsule is currently still outside the bottle, then the bottle is all filled
                             // up, and so the game is now over.
                             if (this._capsule.mapPosition.y < 0) {
@@ -6117,19 +6125,23 @@ var nurdz;
                 }
                 else if (this._keys[InputKey.LEFT]) {
                     this._keys[InputKey.LEFT] = false;
-                    this._capsule.slide(true);
+                    if (this._capsule.slide(true))
+                        this._sndCapSlide.play();
                 }
                 else if (this._keys[InputKey.RIGHT]) {
                     this._keys[InputKey.RIGHT] = false;
-                    this._capsule.slide(false);
+                    if (this._capsule.slide(false))
+                        this._sndCapSlide.play();
                 }
                 else if (this._keys[InputKey.ROTATE_LEFT]) {
                     this._keys[InputKey.ROTATE_LEFT] = false;
-                    this._capsule.rotate(true);
+                    if (this._capsule.rotate(true))
+                        this._sndCapRotate.play();
                 }
                 else if (this._keys[InputKey.ROTATE_RIGHT]) {
                     this._keys[InputKey.ROTATE_RIGHT] = false;
-                    this._capsule.rotate(false);
+                    if (this._capsule.rotate(false))
+                        this._sndCapRotate.play();
                 }
             };
             /**
@@ -6473,6 +6485,12 @@ var nurdz;
             Game.prototype.matchMade = function (virusesRemoved, cascadeLength, matchPoint) {
                 var PER_VIRUS_SCORE = 200;
                 var CASCADE_MULTIPLIER_BONUS = [1, 2, 2.5, 3];
+                // Play an appropriate sound for this match. This has to happen first since we're going to
+                // fiddle the virus count below when we take score.
+                if (virusesRemoved == 0)
+                    this._sndMatchEmpty.play();
+                else
+                    this._sndMatchVirus.play();
                 // Constrain the cascade length to the maximum allowable bonus.
                 if (cascadeLength >= CASCADE_MULTIPLIER_BONUS.length)
                     cascadeLength = CASCADE_MULTIPLIER_BONUS.length - 1;
