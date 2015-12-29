@@ -55,6 +55,12 @@ module nurdz.game
         private _pointer : Pointer;
 
         /**
+         * The sound to play when the menu selection changes; this can be null, in which case no sound is
+         * played.
+         */
+        private _selectSound : Sound;
+
+        /**
          * Return the menu item index at the currently selected location.
          *
          * @returns {number}
@@ -76,8 +82,9 @@ module nurdz.game
          * @param stage the stage that will display this menu
          * @param fontName the font name to render the menu with
          * @param fontSize the size of the font to use to render items, in pixels
+         * @param sound the sound to play when the menu selection changes.
          */
-        constructor (stage : Stage, fontName : string, fontSize : number)
+        constructor (stage : Stage, fontName : string, fontSize : number, sound : Sound = null)
         {
             // Simple super call. We don't have a visual position per se.
             super ("Menu", stage, 0, 0, 0, 0);
@@ -85,6 +92,7 @@ module nurdz.game
             // Store the values provided.
             this._fontName = fontName;
             this._fontSize = fontSize;
+            this._selectSound = sound;
 
             // Combine them together into a single string for later use
             this._fontFullSpec = this._fontSize + "px " + this._fontName;
@@ -145,6 +153,8 @@ module nurdz.game
 
         /**
          * Change the selected menu item to the previous item, if possible.
+         *
+         * If a sound is associated with the menu, it will be played.
          */
         selectPrevious () : void
         {
@@ -153,10 +163,14 @@ module nurdz.game
                 this._selected = this._items.length - 1;
 
             this.updateMenuPointer ();
+            if (this._selectSound != null)
+                this._selectSound.play ();
         }
 
         /**
          * Change the selected menu item to the next item, if possible.
+         *
+         * If a sound is associated with the menu, it will be played.
          */
         selectNext () : void
         {
@@ -165,6 +179,8 @@ module nurdz.game
                 this._selected = 0;
 
             this.updateMenuPointer ();
+            if (this._selectSound != null)
+                this._selectSound.play ();
         }
 
         /**

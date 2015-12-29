@@ -71,7 +71,7 @@ module nurdz.game
             this._music = stage.preloadMusic ("Mellowtron");
 
             // Set up our menu
-            this._menu = new Menu (stage, "Arial,Serif", 20);
+            this._menu = new Menu (stage, "Arial,Serif", 20, stage.preloadSound ("menu_select"));
             this._menu.addItem ("Try again", new Point (325, 350));
             this._menu.addItem ("Quit", new Point (325, 390));
 

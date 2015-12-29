@@ -50,6 +50,11 @@ module nurdz.game
         private _music : Sound;
 
         /**
+         * The sound played when the selected level changes.
+         */
+        private _sndLevelChange : Sound;
+
+        /**
          * Get the level that the game is currently at. In this scene, this represents the level that the
          * next game will be started at. It defaults to 0, gets modified by the user, and after a game it
          * gets set to the last level achieved (although it caps at 20).
@@ -69,9 +74,10 @@ module nurdz.game
 
             // Preload all of our resources.
             this._music = stage.preloadMusic ("BitQuest");
+            this._sndLevelChange = stage.preloadSound ("menu_select");
 
             // Set up our menu.
-            this._menu = new Menu (stage, "Arial,Serif", 40);
+            this._menu = new Menu (stage, "Arial,Serif", 40, stage.preloadSound ("menu_select"));
             this._menu.addItem ("Level: 0", new Point (150, 400));
             this._menu.addItem ("Start Game", new Point (150, 450));
 
@@ -131,6 +137,9 @@ module nurdz.game
             let item = this._menu.getItem (0);
             if (item)
                 item.text = "Level: " + this._level;
+
+            // Play the sound that shows that the menu selection changed.
+            this._sndLevelChange.play ();
         }
 
         /**

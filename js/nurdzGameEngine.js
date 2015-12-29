@@ -5622,13 +5622,16 @@ var nurdz;
              * @param stage the stage that will display this menu
              * @param fontName the font name to render the menu with
              * @param fontSize the size of the font to use to render items, in pixels
+             * @param sound the sound to play when the menu selection changes.
              */
-            function Menu(stage, fontName, fontSize) {
+            function Menu(stage, fontName, fontSize, sound) {
+                if (sound === void 0) { sound = null; }
                 // Simple super call. We don't have a visual position per se.
                 _super.call(this, "Menu", stage, 0, 0, 0, 0);
                 // Store the values provided.
                 this._fontName = fontName;
                 this._fontSize = fontSize;
+                this._selectSound = sound;
                 // Combine them together into a single string for later use
                 this._fontFullSpec = this._fontSize + "px " + this._fontName;
                 // The menu starts out empty.
@@ -5695,21 +5698,29 @@ var nurdz;
             };
             /**
              * Change the selected menu item to the previous item, if possible.
+             *
+             * If a sound is associated with the menu, it will be played.
              */
             Menu.prototype.selectPrevious = function () {
                 this._selected--;
                 if (this._selected < 0)
                     this._selected = this._items.length - 1;
                 this.updateMenuPointer();
+                if (this._selectSound != null)
+                    this._selectSound.play();
             };
             /**
              * Change the selected menu item to the next item, if possible.
+             *
+             * If a sound is associated with the menu, it will be played.
              */
             Menu.prototype.selectNext = function () {
                 this._selected++;
                 if (this._selected >= this._items.length)
                     this._selected = 0;
                 this.updateMenuPointer();
+                if (this._selectSound != null)
+                    this._selectSound.play();
             };
             /**
              * Update the state of the menu based on the current tick; we use this to visually mark the
@@ -6533,7 +6544,7 @@ var nurdz;
                 // Preload all of our resources.
                 this._music = stage.preloadMusic("Mellowtron");
                 // Set up our menu
-                this._menu = new game.Menu(stage, "Arial,Serif", 20);
+                this._menu = new game.Menu(stage, "Arial,Serif", 20, stage.preloadSound("menu_select"));
                 this._menu.addItem("Try again", new game.Point(325, 350));
                 this._menu.addItem("Quit", new game.Point(325, 390));
                 // Make sure it gets render and update requests.
@@ -6695,8 +6706,9 @@ var nurdz;
                 _super.call(this, "titleScreen", stage);
                 // Preload all of our resources.
                 this._music = stage.preloadMusic("BitQuest");
+                this._sndLevelChange = stage.preloadSound("menu_select");
                 // Set up our menu.
-                this._menu = new game.Menu(stage, "Arial,Serif", 40);
+                this._menu = new game.Menu(stage, "Arial,Serif", 40, stage.preloadSound("menu_select"));
                 this._menu.addItem("Level: 0", new game.Point(150, 400));
                 this._menu.addItem("Start Game", new game.Point(150, 450));
                 // Make sure it gets render and update requests.
@@ -6754,6 +6766,8 @@ var nurdz;
                 var item = this._menu.getItem(0);
                 if (item)
                     item.text = "Level: " + this._level;
+                // Play the sound that shows that the menu selection changed.
+                this._sndLevelChange.play();
             };
             /**
              * Render the name of the game to the screen.
