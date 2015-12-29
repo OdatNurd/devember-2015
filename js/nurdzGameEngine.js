@@ -5871,6 +5871,8 @@ var nurdz;
             function Game(stage) {
                 // Invoke the super to set up our instance.
                 _super.call(this, "game", stage);
+                // Preload all of our resources.
+                this._music = stage.preloadMusic("Pixelland");
                 // We are neither generating a level nor allowing capsule control right now
                 this._generatingLevel = false;
                 this._controllingCapsule = false;
@@ -5983,6 +5985,8 @@ var nurdz;
             Game.prototype.activating = function (previousScene) {
                 // Let the super do things so we get debug messages
                 _super.prototype.activating.call(this, previousScene);
+                // Start our music playing.
+                this._music.play();
                 // If the previous scene has a level property, it's the title screen. In that case, we want to
                 // set our level to be what its level is prior to restarting.
                 var newLevel = previousScene["level"];
@@ -5990,6 +5994,17 @@ var nurdz;
                     this._level = newLevel;
                 // Restart the game; we're either restarting after a game over or coming in from the title screen.
                 this.restartGame();
+            };
+            /**
+             * Triggers when we are no longer the active scene.
+             *
+             * @param nextScene the scene that is going to become active.
+             */
+            Game.prototype.deactivating = function (nextScene) {
+                // Let the super do things so we get debug messages.
+                _super.prototype.deactivating.call(this, nextScene);
+                // Pause our music playback.
+                this._music.pause();
             };
             /**
              * Render our scene.
@@ -6247,6 +6262,12 @@ var nurdz;
                     return true;
                 // Check other keys
                 switch (eventObj.keyCode) {
+                    // The M key mutes/un-mutes the music. Since the stage will toggle the mute state of
+                    // everything, all we need to do here is give it the opposite of the current state of our
+                    // music, and then our music and all other music will toggle state appropriately. Magic!
+                    case game.KeyCodes.KEY_M:
+                        this._stage.muteMusic(!this._music.muted);
+                        return true;
                     // F1 toggles debug mode on and off.
                     case game.KeyCodes.KEY_F1:
                         this.toggleDebugState();
@@ -6509,6 +6530,8 @@ var nurdz;
              */
             function GameOver(stage) {
                 _super.call(this, "gameOver", stage);
+                // Preload all of our resources.
+                this._music = stage.preloadMusic("Mellowtron");
                 // Set up our menu
                 this._menu = new game.Menu(stage, "Arial,Serif", 20);
                 this._menu.addItem("Try again", new game.Point(325, 350));
@@ -6540,10 +6563,23 @@ var nurdz;
              * @param previousScene
              */
             GameOver.prototype.activating = function (previousScene) {
-                // Chain to the super so we get debug messages (otherwise not needed) about the scene change, then
-                // store the scene that game before us.
+                // Chain to the super so we get debug messages (otherwise not needed) about the scene change
                 _super.prototype.activating.call(this, previousScene);
+                // Start our music playing.
+                this._music.play();
+                // Store the scene that preceeded us
                 this._gameScene = previousScene;
+            };
+            /**
+             * Triggers when we are no longer the active scene.
+             *
+             * @param nextScene the scene that is going to become active.
+             */
+            GameOver.prototype.deactivating = function (nextScene) {
+                // Let the super do things so we get debug messages.
+                _super.prototype.deactivating.call(this, nextScene);
+                // Pause our music playback.
+                this._music.pause();
             };
             /**
              * Display some text centered horizontally and vertically around the point provided, using the
@@ -6595,12 +6631,22 @@ var nurdz;
                 if (_super.prototype.inputKeyDown.call(this, eventObj))
                     return true;
                 switch (eventObj.keyCode) {
+                    // The M key mutes/un-mutes the music. Since the stage will toggle the mute state of
+                    // everything, all we need to do here is give it the opposite of the current state of our
+                    // music, and then our music and all other music will toggle state appropriately. Magic!
+                    case game.KeyCodes.KEY_M:
+                        this._stage.muteMusic(!this._music.muted);
+                        return true;
+                    // Previous menu item (wraps around)
                     case game.KeyCodes.KEY_UP:
                         this._menu.selectPrevious();
                         return true;
+                    // Next menu item (wraps around)
                     case game.KeyCodes.KEY_DOWN:
                         this._menu.selectNext();
                         return true;
+                    // Select menu item; switches to either the title screen or the game screen depending on
+                    // the item selected.
                     case game.KeyCodes.KEY_ENTER:
                         this._stage.switchToScene(this._menu.selected == 0 ? "game" : "title");
                         return true;
@@ -6647,6 +6693,8 @@ var nurdz;
             function TitleScreen(stage) {
                 // Let the super do some setup
                 _super.call(this, "titleScreen", stage);
+                // Preload all of our resources.
+                this._music = stage.preloadMusic("BitQuest");
                 // Set up our menu.
                 this._menu = new game.Menu(stage, "Arial,Serif", 40);
                 this._menu.addItem("Level: 0", new game.Point(150, 400));
@@ -6676,6 +6724,8 @@ var nurdz;
             TitleScreen.prototype.activating = function (previousScene) {
                 // Let the super debug log for us
                 _super.prototype.activating.call(this, previousScene);
+                // Start our music playing.
+                this._music.play();
                 // Does the previous scene have a level property?
                 if (previousScene["level"] != undefined) {
                     // Yes, use it to set our level. We cap at 20 as far as allowing the player to start where
@@ -6685,6 +6735,17 @@ var nurdz;
                         this._level = 20;
                     this.updateMenu();
                 }
+            };
+            /**
+             * Triggers when we are no longer the active scene.
+             *
+             * @param nextScene the scene that is going to become active.
+             */
+            TitleScreen.prototype.deactivating = function (nextScene) {
+                // Let the super do things so we get debug messages.
+                _super.prototype.deactivating.call(this, nextScene);
+                // Pause our music playback.
+                this._music.pause();
             };
             /**
              * This helper updates our menu to show what the currently selected level is.
@@ -6754,12 +6815,21 @@ var nurdz;
                 if (_super.prototype.inputKeyDown.call(this, eventObj))
                     return true;
                 switch (eventObj.keyCode) {
+                    // The M key mutes/un-mutes the music. Since the stage will toggle the mute state of
+                    // everything, all we need to do here is give it the opposite of the current state of our
+                    // music, and then our music and all other music will toggle state appropriately. Magic!
+                    case game.KeyCodes.KEY_M:
+                        this._stage.muteMusic(!this._music.muted);
+                        return true;
+                    // Previous menu selection (wraps around)
                     case game.KeyCodes.KEY_UP:
                         this._menu.selectPrevious();
                         return true;
+                    // Next menu selection (wraps around)
                     case game.KeyCodes.KEY_DOWN:
                         this._menu.selectNext();
                         return true;
+                    // Reduce the level (capped at 0 minimum)
                     case game.KeyCodes.KEY_LEFT:
                         if (this._menu.selected == 0) {
                             if (this._level > 0) {
@@ -6769,6 +6839,7 @@ var nurdz;
                             return true;
                         }
                         return false;
+                    // Increase the level (capped at 20 maximum)
                     case game.KeyCodes.KEY_RIGHT:
                         if (this._menu.selected == 0) {
                             if (this._level < 20) {
@@ -6778,6 +6849,7 @@ var nurdz;
                             return true;
                         }
                         return false;
+                    // Select the current menu item; on level increase it, on start game, do that.
                     case game.KeyCodes.KEY_ENTER:
                         if (this._menu.selected == 0) {
                             this._level++;
@@ -6824,10 +6896,14 @@ var nurdz;
                 // a state it is already in, which can only happen if the engine stops itself when we didn't
                 // expect it.
                 try {
-                    if (gameRunning)
+                    if (gameRunning) {
                         stage.stop();
-                    else
+                        stage.muteMusic(true);
+                    }
+                    else {
                         stage.run();
+                        stage.muteMusic(false);
+                    }
                 }
                 // Log and then rethrow the error.
                 catch (error) {

@@ -39,6 +39,11 @@ module nurdz.game
         private _menu : Menu;
 
         /**
+         * The music that we play as long as our scene is active.
+         */
+        private _music : Sound;
+
+        /**
          * Get the level that the game is currently at. In this scene, this represents the level that the
          * last game was at before it ended. This is queried by the title screen when we return to it so
          * that it can set the level to be what the player ended at if they quit.
@@ -62,6 +67,9 @@ module nurdz.game
         {
             super ("gameOver", stage);
 
+            // Preload all of our resources.
+            this._music = stage.preloadMusic ("Mellowtron");
+
             // Set up our menu
             this._menu = new Menu (stage, "Arial,Serif", 20);
             this._menu.addItem ("Try again", new Point (325, 350));
@@ -80,10 +88,28 @@ module nurdz.game
          */
         activating (previousScene : Scene) : void
         {
-            // Chain to the super so we get debug messages (otherwise not needed) about the scene change, then
-            // store the scene that game before us.
+            // Chain to the super so we get debug messages (otherwise not needed) about the scene change
             super.activating (previousScene);
+
+            // Start our music playing.
+            this._music.play ();
+
+            // Store the scene that preceeded us
             this._gameScene = <Game> previousScene;
+        }
+
+        /**
+         * Triggers when we are no longer the active scene.
+         *
+         * @param nextScene the scene that is going to become active.
+         */
+        deactivating (nextScene : Scene) : void
+        {
+            // Let the super do things so we get debug messages.
+            super.deactivating (nextScene);
+
+            // Pause our music playback.
+            this._music.pause ();
         }
 
         /**
@@ -147,14 +173,25 @@ module nurdz.game
 
             switch (eventObj.keyCode)
             {
+                // The M key mutes/un-mutes the music. Since the stage will toggle the mute state of
+                // everything, all we need to do here is give it the opposite of the current state of our
+                // music, and then our music and all other music will toggle state appropriately. Magic!
+                case KeyCodes.KEY_M:
+                    this._stage.muteMusic (!this._music.muted);
+                    return true;
+
+                // Previous menu item (wraps around)
                 case KeyCodes.KEY_UP:
                     this._menu.selectPrevious ();
                     return true;
 
+                // Next menu item (wraps around)
                 case KeyCodes.KEY_DOWN:
                     this._menu.selectNext ();
                     return true;
 
+                // Select menu item; switches to either the title screen or the game screen depending on
+                // the item selected.
                 case KeyCodes.KEY_ENTER:
                     this._stage.switchToScene (this._menu.selected == 0 ? "game" : "title");
                     return true;

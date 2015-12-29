@@ -27,9 +27,15 @@ module nurdz.main
             try
             {
                 if (gameRunning)
+                {
                     stage.stop ();
+                    stage.muteMusic (true);
+                }
                 else
+                {
                     stage.run ();
+                    stage.muteMusic (false);
+                }
             }
 
                 // Log and then rethrow the error.

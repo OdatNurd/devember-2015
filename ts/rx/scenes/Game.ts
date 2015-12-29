@@ -174,6 +174,11 @@ module nurdz.game
         private _nextCapsule : Capsule;
 
         /**
+         * The music that we play as long as our scene is active.
+         */
+        private _music : Sound;
+
+        /**
          * The score for the current game.
          */
         private _score : number;
@@ -312,6 +317,9 @@ module nurdz.game
             // Invoke the super to set up our instance.
             super ("game", stage);
 
+            // Preload all of our resources.
+            this._music = stage.preloadMusic ("Pixelland");
+
             // We are neither generating a level nor allowing capsule control right now
             this._generatingLevel = false;
             this._controllingCapsule = false;
@@ -425,6 +433,9 @@ module nurdz.game
             // Let the super do things so we get debug messages
             super.activating (previousScene);
 
+            // Start our music playing.
+            this._music.play ();
+
             // If the previous scene has a level property, it's the title screen. In that case, we want to
             // set our level to be what its level is prior to restarting.
             let newLevel = previousScene["level"];
@@ -433,6 +444,20 @@ module nurdz.game
 
             // Restart the game; we're either restarting after a game over or coming in from the title screen.
             this.restartGame ();
+        }
+
+        /**
+         * Triggers when we are no longer the active scene.
+         *
+         * @param nextScene the scene that is going to become active.
+         */
+        deactivating (nextScene : Scene) : void
+        {
+            // Let the super do things so we get debug messages.
+            super.deactivating (nextScene);
+
+            // Pause our music playback.
+            this._music.pause ();
         }
 
         /**
@@ -761,6 +786,13 @@ module nurdz.game
             // Check other keys
             switch (eventObj.keyCode)
             {
+                // The M key mutes/un-mutes the music. Since the stage will toggle the mute state of
+                // everything, all we need to do here is give it the opposite of the current state of our
+                // music, and then our music and all other music will toggle state appropriately. Magic!
+                case KeyCodes.KEY_M:
+                    this._stage.muteMusic (!this._music.muted);
+                    return true;
+
                 // F1 toggles debug mode on and off.
                 case KeyCodes.KEY_F1:
                     this.toggleDebugState ();

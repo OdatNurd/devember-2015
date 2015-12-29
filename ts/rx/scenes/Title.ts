@@ -45,6 +45,11 @@ module nurdz.game
         private _menu : Menu;
 
         /**
+         * The music that we play as long as our scene is active.
+         */
+        private _music : Sound;
+
+        /**
          * Get the level that the game is currently at. In this scene, this represents the level that the
          * next game will be started at. It defaults to 0, gets modified by the user, and after a game it
          * gets set to the last level achieved (although it caps at 20).
@@ -61,6 +66,9 @@ module nurdz.game
         {
             // Let the super do some setup
             super ("titleScreen", stage);
+
+            // Preload all of our resources.
+            this._music = stage.preloadMusic ("BitQuest");
 
             // Set up our menu.
             this._menu = new Menu (stage, "Arial,Serif", 40);
@@ -86,6 +94,9 @@ module nurdz.game
             // Let the super debug log for us
             super.activating (previousScene);
 
+            // Start our music playing.
+            this._music.play ();
+
             // Does the previous scene have a level property?
             if (previousScene["level"] != undefined)
             {
@@ -96,6 +107,20 @@ module nurdz.game
                     this._level = 20;
                 this.updateMenu ();
             }
+        }
+
+        /**
+         * Triggers when we are no longer the active scene.
+         *
+         * @param nextScene the scene that is going to become active.
+         */
+        deactivating (nextScene : Scene) : void
+        {
+            // Let the super do things so we get debug messages.
+            super.deactivating (nextScene);
+
+            // Pause our music playback.
+            this._music.pause ();
         }
 
         /**
@@ -183,14 +208,24 @@ module nurdz.game
 
             switch (eventObj.keyCode)
             {
+                // The M key mutes/un-mutes the music. Since the stage will toggle the mute state of
+                // everything, all we need to do here is give it the opposite of the current state of our
+                // music, and then our music and all other music will toggle state appropriately. Magic!
+                case KeyCodes.KEY_M:
+                    this._stage.muteMusic (!this._music.muted);
+                    return true;
+
+                // Previous menu selection (wraps around)
                 case KeyCodes.KEY_UP:
                     this._menu.selectPrevious ();
                     return true;
 
+                // Next menu selection (wraps around)
                 case KeyCodes.KEY_DOWN:
                     this._menu.selectNext ();
                     return true;
 
+                // Reduce the level (capped at 0 minimum)
                 case KeyCodes.KEY_LEFT:
                     if (this._menu.selected == 0)
                     {
@@ -203,6 +238,7 @@ module nurdz.game
                     }
                     return false;
 
+                // Increase the level (capped at 20 maximum)
                 case KeyCodes.KEY_RIGHT:
                     if (this._menu.selected == 0)
                     {
@@ -215,7 +251,7 @@ module nurdz.game
                     }
                     return false;
 
-
+                // Select the current menu item; on level increase it, on start game, do that.
                 case KeyCodes.KEY_ENTER:
                     if (this._menu.selected == 0)
                     {
