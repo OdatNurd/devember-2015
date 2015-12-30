@@ -73,28 +73,28 @@ module nurdz.game
         "1": [['m', 1, 0], [2, 0], [2, 5], [1, 5]],
 
         "2": [['m', 0, 0], [3, 0], [3, 3], [1, 3], [1, 4], [3, 4], [3, 5], [0, 5], [0, 2], [2, 2], [2, 1],
-            [0, 1]],
+              [0, 1]],
 
         "3": [['m', 0, 0], [3, 0], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3], [0, 3], [0, 2], [2, 2], [2, 1],
-            [0, 1]],
+              [0, 1]],
 
         "4": [['m', 0, 0], [1, 0], [1, 2], [2, 2], [2, 0], [3, 0], [3, 5], [2, 5], [2, 3], [0, 3]],
 
         "5": [['m', 0, 0], [3, 0], [3, 1], [1, 1], [1, 2], [3, 2], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3],
-            [0, 3]],
+              [0, 3]],
 
         "6": [['m', 0, 0], [3, 0], [3, 1], [1, 1], [1, 2], [3, 2], [3, 5], [0, 5], ['c'], ['m', 1, 3], [1, 4],
-            [2, 4], [2, 3]],
+              [2, 4], [2, 3]],
 
         "7": [['m', 0, 0], [3, 0], [3, 5], [2, 5], [2, 1], [1, 1], [1, 2], [0, 2]],
 
         "8": [['m', 0, 0], [3, 0], [3, 5], [0, 5], ['c'], ['m', 1, 1], [1, 2], [2, 2], [2, 1], ['c'],
-            ['m', 1, 3],
-            [1, 4], [2, 4], [2, 3]],
+              ['m', 1, 3],
+              [1, 4], [2, 4], [2, 3]],
 
         "9": [['m', 0, 0], [3, 0], [3, 5], [0, 5], [0, 4], [2, 4], [2, 3], [0, 3], ['m', 1, 1], [1, 2],
-            [2, 2],
-            [2, 1]]
+              [2, 2],
+              [2, 1]]
     };
 
     /**
@@ -188,9 +188,12 @@ module nurdz.game
 
         /**
          * Match related sounds; one for when a match includes a virus and one where it does not.
+         * Additionally, if a match is part of a cascade, an extra sound is played to let you know you scored
+         * extra points for that.
          */
         private _sndMatchVirus : Sound;
         private _sndMatchEmpty : Sound;
+        private _sndMatchCascade : Sound;
 
         /**
          * The score for the current game.
@@ -339,6 +342,7 @@ module nurdz.game
             this._sndCapDrop = stage.preloadSound ("capsule_drop");
             this._sndMatchVirus = stage.preloadSound ("match_virus");
             this._sndMatchEmpty = stage.preloadSound ("match_segment");
+            this._sndMatchCascade = stage.preloadSound ("score_cascade");
 
             // We are neither generating a level nor allowing capsule control right now
             this._generatingLevel = false;
@@ -1061,7 +1065,14 @@ module nurdz.game
             if (virusesRemoved == 0)
                 this._sndMatchEmpty.play ();
             else
+            {
                 this._sndMatchVirus.play ();
+
+                // There are viruses matched; if this has a cascade length larger than 1, queue up an
+                // extra sound to play.
+                if (cascadeLength > 0)
+                    this._sndMatchCascade.play ();
+            }
 
             // Constrain the cascade length to the maximum allowable bonus.
             if (cascadeLength >= CASCADE_MULTIPLIER_BONUS.length)

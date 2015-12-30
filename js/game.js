@@ -2495,6 +2495,7 @@ var nurdz;
                 this._sndCapDrop = stage.preloadSound("capsule_drop");
                 this._sndMatchVirus = stage.preloadSound("match_virus");
                 this._sndMatchEmpty = stage.preloadSound("match_segment");
+                this._sndMatchCascade = stage.preloadSound("score_cascade");
                 // We are neither generating a level nor allowing capsule control right now
                 this._generatingLevel = false;
                 this._controllingCapsule = false;
@@ -3094,8 +3095,13 @@ var nurdz;
                 // fiddle the virus count below when we take score.
                 if (virusesRemoved == 0)
                     this._sndMatchEmpty.play();
-                else
+                else {
                     this._sndMatchVirus.play();
+                    // There are viruses matched; if this has a cascade length larger than 1, queue up an
+                    // extra sound to play.
+                    if (cascadeLength > 0)
+                        this._sndMatchCascade.play();
+                }
                 // Constrain the cascade length to the maximum allowable bonus.
                 if (cascadeLength >= CASCADE_MULTIPLIER_BONUS.length)
                     cascadeLength = CASCADE_MULTIPLIER_BONUS.length - 1;
