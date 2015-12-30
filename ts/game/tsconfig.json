@@ -9,6 +9,15 @@
     },
     "files": [
         "../../js/engine.d.ts",
+        "entity/Bottle.ts",
+        "entity/Segment.ts",
+        "entity/Capsule.ts",
+        "entity/Pointer.ts",
+        "entity/Menu.ts",
+        "entity/FloatingText.ts",
+        "scenes/Title.ts",
+        "scenes/Game.ts",
+        "scenes/GameOver.ts",
         "main.ts"
     ]
 }
