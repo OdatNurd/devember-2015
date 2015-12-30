@@ -91,6 +91,8 @@ var nurdz;
                 _super.call(this, "Bottle", stage, (stage.width / 2) - (width / 2), stage.height - height, width, height, 1, { colorStr: color });
                 // Save our parent scene.
                 this._scene = parent;
+                // Load our sounds
+                this._sndSegmentDrop = stage.preloadSound("segment_drop");
                 // Start our tick counts initialized.
                 this._dropTicks = 0;
                 // By default, we're not matching and nothing has been dropping.
@@ -450,6 +452,9 @@ var nurdz;
                         didDrop = true;
                     }
                 }
+                // If anything dropped, play the sound associated with that.
+                if (didDrop)
+                    this._sndSegmentDrop.play();
                 return didDrop;
             };
             /**

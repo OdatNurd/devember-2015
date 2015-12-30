@@ -113,6 +113,12 @@ module nurdz.game
         private _bottlePolygon : Polygon;
 
         /**
+         * The sound played during a drop phase every time something drops in the bottle; this only
+         * happens after a match, as segments drop down in the bottle after being released.
+         */
+        private _sndSegmentDrop : Sound;
+
+        /**
          * The value of this is true if and only if the last frame update was a frame where gravity was
          * checked to see if anything should be dropping, AND at least one segment was moved as a result.
          * Otherwise, this is false.
@@ -214,6 +220,9 @@ module nurdz.game
 
             // Save our parent scene.
             this._scene = parent;
+
+            // Load our sounds
+            this._sndSegmentDrop = stage.preloadSound ("segment_drop");
 
             // Start our tick counts initialized.
             this._dropTicks = 0;
@@ -611,6 +620,10 @@ module nurdz.game
                     didDrop = true;
                 }
             }
+
+            // If anything dropped, play the sound associated with that.
+            if (didDrop)
+                this._sndSegmentDrop.play ();
 
             return didDrop;
         }
