@@ -911,11 +911,19 @@ module nurdz.game
             this._controllingCapsule = false;
 
             // Set the level to generate and turn on our flag that says we are generating a new level.
+            // Once the generation is complete, the rest of the restart process will kick off, which does
+            // things like show the capsules and restart the drop timer and so on.
             this._level = level;
             this._currentDropSpeed = this.dropSpeedForLevel (this._level);
             this._levelVirusCount = this.virusesForLevel (this._level);
             this._generatingLevel = true;
             this._genTicks = this._stage.tick;
+
+            // The generation code calls dropComplete() when it is done, which puts the next capsule into
+            // the current capsule and creates a new next capsule. Regardless if this level is starting
+            // because the previous level was a success or its the start of a new game, we don't want to
+            // just reused whatever the last capsule was, so generate a new one here.
+            this._nextCapsule.properties.type = Utils.randomIntInRange (0, 8);
         }
 
         /**
@@ -924,9 +932,10 @@ module nurdz.game
          */
         restartGame () : void
         {
-            // TODO Should this set up anything else?
-            // Reset the score of the game, then start a new level.
+            // Make sure that the score gets set to 0 because the game is restarting
             this._score = 0;
+
+            // Start the next level now; this makes sure that everything else needed gets reset.
             this.startNewLevel (this._level);
         }
 
